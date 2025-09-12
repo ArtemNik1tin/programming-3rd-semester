@@ -1,2 +1,5 @@
-# programming-3rd-semester
-Homework, practical tasks, and tests in C# programming for the second semester.
+**1. Введение в многопоточное программирование**
+   - Параллельное умножение матриц
+
+**2. Примитивы синхронизации**
+   - Lazy

@@ -5,6 +5,7 @@
 namespace Matrix.Tests;
 
 using System.Text;
+using ConcurrentMatrixMultiplication;
 
 #pragma warning disable SA1600
 public class MatrixTests
@@ -24,10 +25,225 @@ public class MatrixTests
     [TearDown]
     public void TearDown()
     {
-        if (File.Exists(TestFilePath))
+        string[] testFiles = [TestFilePath, "left.txt", "right.txt", "result.txt",
+                            "test_output.txt", "single.txt", "large.txt", "test_file.txt"];
+
+        foreach (var file in testFiles)
         {
-            File.Delete(TestFilePath);
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
         }
+    }
+
+    [Test]
+    public void Multiply_WithFilePaths_ShouldCreateResultFileWithCorrectContent()
+    {
+        this.CreateTestFile("left.txt", "1 2\n3 4");
+        this.CreateTestFile("right.txt", "5 6\n7 8");
+        string resultPath = "result.txt";
+
+        Matrix.Muliply("left.txt", "right.txt", resultPath);
+
+        Assert.That(File.Exists(resultPath), Is.True);
+        var content = File.ReadAllText(resultPath);
+        Assert.That(content, Does.Contain("19 22"));
+        Assert.That(content, Does.Contain("43 50"));
+    }
+
+    [Test]
+    public void Multiply_WithFilePaths_ShouldThrowFileNotFoundExceptionWhenLeftFileNotFound()
+    {
+        this.CreateTestFile("right.txt", "1 2\n3 4");
+
+        Assert.That(
+            () => Matrix.Muliply("nonexistent.txt", "right.txt", "result.txt"),
+            Throws.TypeOf<FileNotFoundException>());
+    }
+
+    [Test]
+    public void Multiply_WithFilePaths_ShouldThrowFileNotFoundExceptionWhenRightFileNotFound()
+    {
+        this.CreateTestFile("left.txt", "1 2\n3 4");
+
+        Assert.That(
+            () => Matrix.Muliply("left.txt", "nonexistent.txt", "result.txt"),
+            Throws.TypeOf<FileNotFoundException>());
+    }
+
+    [Test]
+    public void Multiply_WithFilePaths_ShouldThrowWhenResultPathIsNull()
+    {
+        this.CreateTestFile("left.txt", "1 2\n3 4");
+        this.CreateTestFile("right.txt", "5 6\n7 8");
+
+        Assert.That(
+            () => Matrix.Muliply("left.txt", "right.txt", null!),
+            Throws.ArgumentNullException);
+    }
+
+    [Test]
+    public void Multiply_WithFilePaths_ShouldThrowWhenMatricesIncompatible()
+    {
+        this.CreateTestFile("left.txt", "1 2 3\n4 5 6");
+        this.CreateTestFile("right.txt", "1 2\n3 4");
+
+        Assert.That(
+            () => Matrix.Muliply("left.txt", "right.txt", "result.txt"),
+            Throws.ArgumentException);
+    }
+
+    [Test]
+    public void MultiplyFromFiles_ShouldReturnCorrectMatrix()
+    {
+        this.CreateTestFile("left.txt", "1 2\n3 4");
+        this.CreateTestFile("right.txt", "5 6\n7 8");
+
+        var result = Matrix.MultiplyFromFiles("left.txt", "right.txt");
+
+        Assert.That(result.NumberOfRows, Is.EqualTo(2));
+        Assert.That(result.NumberOfColumns, Is.EqualTo(2));
+        Assert.That(result[0, 0], Is.EqualTo(19));
+        Assert.That(result[1, 1], Is.EqualTo(50));
+    }
+
+    [Test]
+    public void MultiplyFromFiles_ShouldThrowWhenFilesNotFound()
+    {
+        Assert.That(
+            () => Matrix.MultiplyFromFiles("nonexistent1.txt", "nonexistent2.txt"),
+            Throws.TypeOf<FileNotFoundException>());
+    }
+
+    [Test]
+    public void MultiplyFromFiles_ShouldThrowWhenPathsAreNullOrEmpty()
+    {
+        Assert.That(
+            () => Matrix.MultiplyFromFiles(null!, "right.txt"),
+            Throws.ArgumentNullException);
+        Assert.That(
+            () => Matrix.MultiplyFromFiles("left.txt", string.Empty),
+            Throws.ArgumentException);
+    }
+
+    [Test]
+    public void SaveToFile_ShouldThrowWhenPathIsNull()
+    {
+        var matrix = new Matrix(2, 2);
+
+        Assert.That(
+            () => matrix.SaveToFile(null!),
+            Throws.ArgumentNullException);
+    }
+
+    [Test]
+    public void SaveToFile_ShouldThrowWhenPathIsEmpty()
+    {
+        var matrix = new Matrix(2, 2);
+
+        Assert.That(
+            () => matrix.SaveToFile(string.Empty),
+            Throws.ArgumentException);
+    }
+
+    [Test]
+    public void SaveToFile_ShouldCreateFileWithCorrectFormat()
+    {
+        int[,] data =
+        {
+            { 1, 2, 3 },
+            { 4, 5, 6 },
+        };
+        var matrix = new Matrix(data);
+        string filePath = "test_output.txt";
+
+        matrix.SaveToFile(filePath);
+
+        Assert.That(File.Exists(filePath), Is.True);
+        var lines = File.ReadAllLines(filePath);
+        Assert.That(lines, Has.Length.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines[0], Is.EqualTo("1 2 3"));
+            Assert.That(lines[1], Is.EqualTo("4 5 6"));
+        });
+    }
+
+    [Test]
+    public void SaveToFile_ShouldOverwriteExistingFile()
+    {
+        int[,] data =
+        {
+            { 1, 2 },
+            { 3, 4 },
+        };
+        var matrix = new Matrix(data);
+        string filePath = "test_file.txt";
+        File.WriteAllText(filePath, "old content");
+
+        matrix.SaveToFile(filePath);
+
+        var content = File.ReadAllText(filePath);
+        Assert.That(content, Does.Not.Contain("old content"));
+        Assert.That(content, Does.Contain("1 2"));
+        Assert.That(content, Does.Contain("3 4"));
+    }
+
+    [Test]
+    public void SaveToFile_ShouldHandleSingleElementMatrix()
+    {
+        int[,] data = { { 42 } };
+        var matrix = new Matrix(data);
+        string filePath = "single.txt";
+
+        matrix.SaveToFile(filePath);
+
+        var content = File.ReadAllText(filePath).Trim();
+        Assert.That(content, Is.EqualTo("42"));
+    }
+
+    [Test]
+    public void Indexer_ShouldThrowWhenIndicesOutOfRange()
+    {
+        var matrix = new Matrix(2, 2);
+
+        Assert.That(() => matrix[-1, 0], Throws.TypeOf<ArgumentOutOfRangeException>());
+        Assert.That(() => matrix[2, 0], Throws.TypeOf<ArgumentOutOfRangeException>());
+        Assert.That(() => matrix[0, -1], Throws.TypeOf<ArgumentOutOfRangeException>());
+        Assert.That(() => matrix[0, 2], Throws.TypeOf<ArgumentOutOfRangeException>());
+    }
+
+    [Test]
+    public void Multiply_ShouldThrowArgumentNullException_WhenLeftMatrixIsNull()
+    {
+        Matrix right = new(2, 2);
+        Assert.That(() => Matrix.Multiply(null!, right), Throws.ArgumentNullException);
+    }
+
+    [Test]
+    public void Multiply_ShouldThrowArgumentNullException_WhenRightMatrixIsNull()
+    {
+        Matrix left = new(2, 2);
+        Assert.That(() => Matrix.Multiply(left, null!), Throws.ArgumentNullException);
+    }
+
+    [Test]
+    public void Multiply_ShouldThrowArgumentException_WhenMatricesCannotBeMultiplied()
+    {
+        Matrix left = new(2, 3);
+        Matrix right = new(2, 2);
+
+        Assert.That(
+            () => Matrix.Multiply(left, right),
+            Throws.ArgumentException.With.Message.Contains("cannot be multiplied"));
+    }
+
+    [Test]
+    public void Constructor_ShouldThrowArgumentOutOfRangeException_WhenNonPositiveDimensions()
+    {
+        Assert.That(() => new Matrix(0, 5), Throws.TypeOf<ArgumentOutOfRangeException>());
+        Assert.That(() => new Matrix(5, -1), Throws.TypeOf<ArgumentOutOfRangeException>());
     }
 
     [Test]
@@ -35,7 +251,7 @@ public class MatrixTests
     {
         this.CreateTestFile(TestContent);
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(TestFilePath);
+        var matrix = new Matrix(TestFilePath);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(3));
         Assert.That(matrix.NumberOfColumns, Is.EqualTo(3));
@@ -49,7 +265,7 @@ public class MatrixTests
         string? nullPath = null;
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(nullPath!),
+            () => new Matrix(nullPath!),
             Throws.ArgumentNullException);
     }
 
@@ -59,7 +275,7 @@ public class MatrixTests
         var emptyPath = string.Empty;
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(emptyPath),
+            () => new Matrix(emptyPath),
             Throws.ArgumentException);
     }
 
@@ -69,7 +285,7 @@ public class MatrixTests
         var nonExistentPath = "nonexistent.txt";
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(nonExistentPath),
+            () => new Matrix(nonExistentPath),
             Throws.TypeOf<FileNotFoundException>());
     }
 
@@ -79,7 +295,7 @@ public class MatrixTests
         this.CreateTestFile(string.Empty);
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(TestFilePath),
+            () => new Matrix(TestFilePath),
             Throws.TypeOf<InvalidDataException>());
     }
 
@@ -89,7 +305,7 @@ public class MatrixTests
         this.CreateTestFile("1 2 3\n4 5\n6 7 8");
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(TestFilePath),
+            () => new Matrix(TestFilePath),
             Throws.TypeOf<FormatException>());
     }
 
@@ -99,7 +315,7 @@ public class MatrixTests
         this.CreateTestFile("1 2 3\n4 abc 6\n7 8 9");
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(TestFilePath),
+            () => new Matrix(TestFilePath),
             Throws.TypeOf<FormatException>().With.Message.Contains("Invalid number format"));
     }
 
@@ -108,7 +324,7 @@ public class MatrixTests
     {
         this.CreateTestFile("1 2 3 4 5");
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(TestFilePath);
+        var matrix = new Matrix(TestFilePath);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(1));
         Assert.That(matrix.NumberOfColumns, Is.EqualTo(5));
@@ -120,7 +336,7 @@ public class MatrixTests
     {
         this.CreateTestFile("42");
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(TestFilePath);
+        var matrix = new Matrix(TestFilePath);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(1));
         Assert.That(matrix.NumberOfColumns, Is.EqualTo(1));
@@ -133,7 +349,7 @@ public class MatrixTests
         this.CreateTestFile(TestContent);
         using var fileStream = File.OpenRead(TestFilePath);
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(fileStream);
+        var matrix = new Matrix(fileStream);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(3));
         Assert.That(matrix.NumberOfColumns, Is.EqualTo(3));
@@ -145,7 +361,7 @@ public class MatrixTests
         FileStream? nullStream = null;
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(nullStream!),
+            () => new Matrix(nullStream!),
             Throws.ArgumentNullException);
     }
 
@@ -156,7 +372,7 @@ public class MatrixTests
         using var fileStream = File.OpenRead(TestFilePath);
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(fileStream),
+            () => new Matrix(fileStream),
             Throws.TypeOf<InvalidDataException>());
     }
 
@@ -167,7 +383,7 @@ public class MatrixTests
         using var fileStream = File.OpenRead(TestFilePath);
         fileStream.Position = 3;
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(fileStream);
+        var matrix = new Matrix(fileStream);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(3));
     }
@@ -178,7 +394,7 @@ public class MatrixTests
         var contentBytes = Encoding.UTF8.GetBytes(TestContent);
         using var memoryStream = new MemoryStream(contentBytes);
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(memoryStream);
+        var matrix = new Matrix(memoryStream);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(3));
         Assert.That(matrix.NumberOfColumns, Is.EqualTo(3));
@@ -190,7 +406,7 @@ public class MatrixTests
         Stream? nullStream = null;
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(nullStream!),
+            () => new Matrix(nullStream!),
             Throws.ArgumentNullException);
     }
 
@@ -200,7 +416,7 @@ public class MatrixTests
         using var emptyStream = new MemoryStream();
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(emptyStream),
+            () => new Matrix(emptyStream),
             Throws.TypeOf<InvalidDataException>().With.Message.Contains("empty"));
     }
 
@@ -211,7 +427,7 @@ public class MatrixTests
         var contentBytes = Encoding.UTF8.GetBytes(content);
         using var memoryStream = new MemoryStream(contentBytes);
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(memoryStream);
+        var matrix = new Matrix(memoryStream);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(2));
         Assert.That(matrix.NumberOfColumns, Is.EqualTo(2));
@@ -225,7 +441,7 @@ public class MatrixTests
         using var memoryStream = new MemoryStream(contentBytes);
 
         Assert.That(
-            () => new ConcurrentMatrixMultiplication.Matrix(memoryStream),
+            () => new Matrix(memoryStream),
             Throws.TypeOf<FormatException>().With.Message.Contains("Invalid number format"));
     }
 
@@ -245,7 +461,7 @@ public class MatrixTests
         var contentBytes = Encoding.UTF8.GetBytes(largeContent.ToString());
         using var memoryStream = new MemoryStream(contentBytes);
 
-        var matrix = new ConcurrentMatrixMultiplication.Matrix(memoryStream);
+        var matrix = new Matrix(memoryStream);
 
         Assert.That(matrix.NumberOfRows, Is.EqualTo(100));
         Assert.That(matrix.NumberOfColumns, Is.EqualTo(2));
@@ -261,9 +477,9 @@ public class MatrixTests
         var contentBytes = Encoding.UTF8.GetBytes(TestContent);
         using var memoryStream = new MemoryStream(contentBytes);
 
-        var matrixFromPath = new ConcurrentMatrixMultiplication.Matrix(TestFilePath);
-        var matrixFromFileStream = new ConcurrentMatrixMultiplication.Matrix(fileStream);
-        var matrixFromStream = new ConcurrentMatrixMultiplication.Matrix(memoryStream);
+        var matrixFromPath = new Matrix(TestFilePath);
+        var matrixFromFileStream = new Matrix(fileStream);
+        var matrixFromStream = new Matrix(memoryStream);
 
         Assert.That(matrixFromPath.NumberOfRows, Is.EqualTo(matrixFromFileStream.NumberOfRows));
         Assert.That(matrixFromPath.NumberOfColumns, Is.EqualTo(matrixFromFileStream.NumberOfColumns));
@@ -283,13 +499,18 @@ public class MatrixTests
         var contentBytes = Encoding.UTF8.GetBytes(invalidContent);
         using var memoryStream = new MemoryStream(contentBytes);
 
-        Assert.That(() => new ConcurrentMatrixMultiplication.Matrix(TestFilePath), Throws.TypeOf<FormatException>());
-        Assert.That(() => new ConcurrentMatrixMultiplication.Matrix(fileStream), Throws.TypeOf<FormatException>());
-        Assert.That(() => new ConcurrentMatrixMultiplication.Matrix(memoryStream), Throws.TypeOf<FormatException>());
+        Assert.That(() => new Matrix(TestFilePath), Throws.TypeOf<FormatException>());
+        Assert.That(() => new Matrix(fileStream), Throws.TypeOf<FormatException>());
+        Assert.That(() => new Matrix(memoryStream), Throws.TypeOf<FormatException>());
     }
 
     private void CreateTestFile(string content)
     {
         File.WriteAllText(TestFilePath, content, Encoding.UTF8);
+    }
+
+    private void CreateTestFile(string fileName, string content)
+    {
+        File.WriteAllText(fileName, content, Encoding.UTF8);
     }
 }

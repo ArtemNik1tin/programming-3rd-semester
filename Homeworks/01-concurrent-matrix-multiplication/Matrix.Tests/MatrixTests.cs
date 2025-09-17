@@ -97,15 +97,19 @@ public class MatrixTests
     [Test]
     public void MultiplyFromFiles_ShouldReturnCorrectMatrix()
     {
-        this.CreateTestFile("left.txt", "1 2\n3 4");
+        this.CreateTestFile("left.txt", "1 -2\n3 4");
         this.CreateTestFile("right.txt", "5 6\n7 8");
 
         var result = Matrix.MultiplyFromFiles("left.txt", "right.txt");
 
-        Assert.That(result.NumberOfRows, Is.EqualTo(2));
-        Assert.That(result.NumberOfColumns, Is.EqualTo(2));
-        Assert.That(result[0, 0], Is.EqualTo(19));
-        Assert.That(result[1, 1], Is.EqualTo(50));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.NumberOfRows, Is.EqualTo(2));
+            Assert.That(result.NumberOfColumns, Is.EqualTo(2));
+            Assert.That(result[0, 0], Is.EqualTo(-9));
+            Assert.That(result[1, 1], Is.EqualTo(50));
+        });
+
     }
 
     [Test]

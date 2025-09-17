@@ -4,6 +4,7 @@
 
 namespace ConcurrentMatrixMultiplication;
 
+using System.Formats.Tar;
 using System.Text;
 
 /// <summary>
@@ -205,6 +206,7 @@ public class Matrix
         var remainingRows = totalRows % threadsCount;
 
         var currentStart = 0;
+        Queue<Thread> threads = new(threadsCount);
         for (var i = 0; i < threadsCount; i++)
         {
             var rowsToProcess = rowsPerThread + (i < remainingRows ? 1 : 0);
@@ -213,8 +215,14 @@ public class Matrix
 
             Thread thread = new(() => MultiplyRowsRange(leftMatrix, rightMatrix, startRow, endRow, resultMatrix));
             thread.Start();
+            threads.Enqueue(thread);
 
             currentStart = endRow;
+        }
+
+        while (threads.Count != 0)
+        {
+            threads.Dequeue().Join();
         }
 
         return resultMatrix;

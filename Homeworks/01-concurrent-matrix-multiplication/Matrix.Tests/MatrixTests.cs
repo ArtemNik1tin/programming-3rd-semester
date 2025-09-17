@@ -109,7 +109,6 @@ public class MatrixTests
             Assert.That(result[0, 0], Is.EqualTo(-9));
             Assert.That(result[1, 1], Is.EqualTo(50));
         });
-
     }
 
     [Test]

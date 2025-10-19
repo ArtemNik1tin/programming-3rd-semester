@@ -6,26 +6,18 @@ using ConcurrentMatrixMultiplication;
 
 if (args.Length >= 3)
 {
-    string leftPath = args[0];
-    string rightPath = args[1];
-    string resultPath = args[2];
+    var leftPath = args[0];
+    var rightPath = args[1];
+    var resultPath = args[2];
 
-    bool useSequential = args.Length > 3 && args[3] == "--sequential";
+    var useSequential = args.Length > 3 && args[3] == "--sequential";
 
     try
     {
         Matrix left = new(leftPath);
         Matrix right = new(rightPath);
 
-        Matrix result;
-        if (useSequential)
-        {
-            result = Matrix.MultiplySequential(left, right);
-        }
-        else
-        {
-            result = Matrix.Multiply(left, right);
-        }
+        var result = useSequential ? Matrix.MultiplySequential(left, right) : Matrix.Multiply(left, right);
 
         result.SaveToFile(resultPath);
         Console.WriteLine($"Multiplication completed. Result saved to {resultPath}");

@@ -4,11 +4,10 @@
 
 namespace ConcurrentMatrixMultiplication;
 
-using System.Formats.Tar;
 using System.Text;
 
 /// <summary>
-/// Class for concurent multiplication of matrices loaded from a user file.
+/// Class for concurrent multiplication of matrices loaded from a user file.
 /// </summary>
 public class Matrix
 {
@@ -45,7 +44,7 @@ public class Matrix
     {
         if (numberOfRows <= 0 || numberOfColumns <= 0)
         {
-            throw new ArgumentOutOfRangeException("The number of columns and rows must be positive.");
+            throw new ArgumentOutOfRangeException($"{nameof(numberOfColumns)} and {nameof(numberOfRows)} must be positive.");
         }
 
         this.data = new int[numberOfRows, numberOfColumns];
@@ -60,7 +59,7 @@ public class Matrix
     public Matrix(string filePath)
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
-        var result = this.ReadFromFilePath(filePath);
+        var result = ReadFromFilePath(filePath);
         this.data = result.Data;
         this.NumberOfRows = result.Rows;
         this.NumberOfColumns = result.Columns;
@@ -73,7 +72,7 @@ public class Matrix
     public Matrix(FileStream fileStream)
     {
         ArgumentNullException.ThrowIfNull(fileStream);
-        var result = this.ReadFromFileStream(fileStream);
+        var result = ReadFromFileStream(fileStream);
         this.data = result.Data;
         this.NumberOfRows = result.Rows;
         this.NumberOfColumns = result.Columns;
@@ -86,7 +85,7 @@ public class Matrix
     public Matrix(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
-        var result = this.ReadFromStream(stream);
+        var result = ReadFromStream(stream);
         this.data = result.Data;
         this.NumberOfRows = result.Rows;
         this.NumberOfColumns = result.Columns;
@@ -95,12 +94,12 @@ public class Matrix
     /// <summary>
     /// Gets number of rows.
     /// </summary>
-    public int NumberOfRows { get; init; }
+    public int NumberOfRows { get; }
 
     /// <summary>
     /// Gets number of columns.
     /// </summary>
-    public int NumberOfColumns { get; init; }
+    public int NumberOfColumns { get; }
 
     /// <summary>
     /// Gets element at specified position.
@@ -153,7 +152,7 @@ public class Matrix
     /// <param name="leftMatrixPath">Path to the left matrix file.</param>
     /// <param name="rightMatrixPath">Path to the right matrix file.</param>
     /// <param name="resultMatrixPath">Path to save the result matrix.</param>
-    public static void Muliply(string leftMatrixPath, string rightMatrixPath, string resultMatrixPath)
+    public static void Multiply(string leftMatrixPath, string rightMatrixPath, string resultMatrixPath)
     {
         ArgumentException.ThrowIfNullOrEmpty(leftMatrixPath);
         ArgumentException.ThrowIfNullOrEmpty(rightMatrixPath);
@@ -161,7 +160,7 @@ public class Matrix
 
         Matrix leftMatrix = new(leftMatrixPath);
         Matrix rightMatrix = new(rightMatrixPath);
-        Matrix resultMatrix = Multiply(leftMatrix, rightMatrix);
+        var resultMatrix = Multiply(leftMatrix, rightMatrix);
 
         resultMatrix.SaveToFile(resultMatrixPath);
     }
@@ -237,10 +236,10 @@ public class Matrix
         ArgumentException.ThrowIfNullOrEmpty(filePath);
 
         using var writer = new StreamWriter(filePath);
-        for (int i = 0; i < this.NumberOfRows; i++)
+        for (var i = 0; i < this.NumberOfRows; i++)
         {
             var row = new StringBuilder();
-            for (int j = 0; j < this.NumberOfColumns; j++)
+            for (var j = 0; j < this.NumberOfColumns; j++)
             {
                 row.Append(this[i, j]);
                 if (j < this.NumberOfColumns - 1)
@@ -275,7 +274,7 @@ public class Matrix
         }
     }
 
-    private (int[,] Data, int Rows, int Columns) ReadFromFilePath(string filePath)
+    private static (int[,] Data, int Rows, int Columns) ReadFromFilePath(string filePath)
     {
         if (!File.Exists(filePath))
         {
@@ -283,22 +282,22 @@ public class Matrix
         }
 
         using var fileStream = File.OpenRead(filePath);
-        return this.ReadFromFileStream(fileStream);
+        return ReadFromFileStream(fileStream);
     }
 
-    private (int[,] Data, int Rows, int Columns) ReadFromFileStream(FileStream fileStream)
+    private static (int[,] Data, int Rows, int Columns) ReadFromFileStream(FileStream fileStream)
     {
-        return this.ReadFromStream(fileStream);
+        return ReadFromStream(fileStream);
     }
 
-    private (int[,] Data, int Rows, int Columns) ReadFromStream(Stream stream)
+    private static (int[,] Data, int Rows, int Columns) ReadFromStream(Stream stream)
     {
         using var reader = new StreamReader(stream);
         var content = reader.ReadToEnd();
-        return this.ParseMatrixContent(content);
+        return ParseMatrixContent(content);
     }
 
-    private (int[,] Data, int Rows, int Columns) ParseMatrixContent(string content)
+    private static (int[,] Data, int Rows, int Columns) ParseMatrixContent(string content)
     {
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
@@ -308,12 +307,12 @@ public class Matrix
         }
 
         var firstLineValues = lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        int columns = firstLineValues.Length;
-        int rows = lines.Length;
+        var columns = firstLineValues.Length;
+        var rows = lines.Length;
 
         var data = new int[rows, columns];
 
-        for (int i = 0; i < rows; i++)
+        for (var i = 0; i < rows; i++)
         {
             var values = lines[i].Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
@@ -322,9 +321,9 @@ public class Matrix
                 throw new FormatException($"Mismatch in number of elements in row {i + 1}. Expected: {columns}, Actual: {values.Length}");
             }
 
-            for (int j = 0; j < columns; j++)
+            for (var j = 0; j < columns; j++)
             {
-                if (!int.TryParse(values[j], out int value))
+                if (!int.TryParse(values[j], out var value))
                 {
                     throw new FormatException($"Invalid number format in row {i + 1}, column {j + 1}: '{values[j]}'");
                 }

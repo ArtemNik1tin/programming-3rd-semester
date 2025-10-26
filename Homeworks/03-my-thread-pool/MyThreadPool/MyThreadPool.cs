@@ -112,11 +112,13 @@ public class MyThreadPool : IDisposable
                 }
                 catch (Exception)
                 {
+                    // ignored
                 }
             }
         }
         catch (Exception)
         {
+            // ignored
         }
     }
 }

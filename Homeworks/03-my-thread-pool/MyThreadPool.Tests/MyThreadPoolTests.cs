@@ -4,8 +4,6 @@
 
 namespace MyThreadPool.Tests;
 
-using System.Collections.Concurrent;
-
 #pragma warning disable SA1600
 #pragma warning disable CS1591 // Missing XML comment for public visible type or member.
 public class MyThreadPoolTests
@@ -13,7 +11,7 @@ public class MyThreadPoolTests
     [Test]
     public void Constructor_WithZeroThreads_Should_ThrowArgumentException()
     {
-        Assert.Throws<ArgumentException>(() => new MyThreadPool(0));
+        Assert.Throws<ArgumentException>(() => { _ = new MyThreadPool(0); });
     }
 
     [Test]

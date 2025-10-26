@@ -15,9 +15,9 @@ internal class MyTask<TResult>(Func<TResult> function, MyThreadPool threadPool) 
     private readonly Func<TResult> function = function ?? throw new ArgumentNullException(nameof(function));
     private readonly MyThreadPool threadPool = threadPool ?? throw new ArgumentNullException(nameof(threadPool));
     private readonly ManualResetEvent completionEvent = new(false);
-    private TResult? result = default;
-    private Exception? exception = null;
-    private volatile bool isCompleted = false;
+    private TResult? result;
+    private Exception? exception;
+    private volatile bool isCompleted;
 
     /// <inheritdoc/>
     public bool IsCompleted
@@ -35,12 +35,7 @@ internal class MyTask<TResult>(Func<TResult> function, MyThreadPool threadPool) 
                 throw new AggregateException(this.exception);
             }
 
-            if (this.result == null)
-            {
-                throw new InvalidOperationException("Task completed without result");
-            }
-
-            return this.result;
+            return this.result ?? throw new InvalidOperationException("Task completed without result");
         }
     }
 
@@ -65,16 +60,16 @@ internal class MyTask<TResult>(Func<TResult> function, MyThreadPool threadPool) 
     }
 
     /// <inheritdoc/>
-    public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult, TNewResult> function)
+    public IMyTask<TNewResult> ContinueWith<TNewResult>(Func<TResult, TNewResult> newFunction)
     {
-        ArgumentNullException.ThrowIfNull(function);
+        ArgumentNullException.ThrowIfNull(newFunction);
+
+        return this.threadPool.Submit(ContinuationFunction);
 
         TNewResult ContinuationFunction()
         {
-            TResult sourceResult = this.Result;
-            return function(sourceResult);
+            var sourceResult = this.Result;
+            return newFunction(sourceResult);
         }
-
-        return this.threadPool.Submit(ContinuationFunction);
     }
 }

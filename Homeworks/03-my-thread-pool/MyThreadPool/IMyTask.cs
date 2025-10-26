@@ -9,10 +9,10 @@ namespace MyThreadPool;
 /// Provides functionality for continuations and result retrieval.
 /// </summary>
 /// <typeparam name="TResult">The type of the result produced by the task.</typeparam>
-public interface IMyTask<TResult>
+public interface IMyTask<out TResult>
 {
     /// <summary>
-    /// Gets a value indicating whether gets a value true if the task is completed. If the result is not yet ready, it returns false.
+    /// Gets a value indicating whether it gets a value true if the task is completed. If the result is not yet ready, it returns false.
     /// </summary>
     public bool IsCompleted { get; }
 

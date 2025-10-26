@@ -31,24 +31,28 @@ public class LazyMultiThreaded<T>(Func<T> supplier) : ILazy<T>
     /// </exception>
     public T? Get()
     {
-        if (!this.isValueCreated)
+        if (this.isValueCreated)
         {
-            lock (this.lockObject)
+            return this.value;
+        }
+
+        lock (this.lockObject)
+        {
+            if (this.isValueCreated)
             {
-                if (!this.isValueCreated)
-                {
-                    if (this.supplier is not null)
-                    {
-                        this.value = this.supplier();
-                        this.isValueCreated = true;
-                        this.supplier = null;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException(
-                            "Failed to initialize the lazy value. The supplier delegate is unavailable.");
-                    }
-                }
+                return this.value;
+            }
+
+            if (this.supplier is not null)
+            {
+                this.value = this.supplier();
+                this.isValueCreated = true;
+                this.supplier = null;
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "Failed to initialize the lazy value. The supplier delegate is unavailable.");
             }
         }
 

@@ -13,9 +13,7 @@ public class LazyMultiThreadedTests
     [Test]
     public void Constructor_WithNullSupplier_ThrowsArgumentNullException()
     {
-        Func<string> nullSupplier = null!;
-
-        Assert.Throws<ArgumentNullException>(() => new LazyMultiThreaded<string>(nullSupplier));
+        Assert.Throws<ArgumentNullException>(() => { _ = new LazyMultiThreaded<string>(null!); });
     }
 
     [Test]
@@ -44,7 +42,7 @@ public class LazyMultiThreadedTests
     [Test]
     public void Get_FromMultipleThreads_ShouldCallSupplierOnlyOnce()
     {
-        int callCount = 0;
+        var callCount = 0;
         var lazy = new LazyMultiThreaded<int>(() =>
         {
             Interlocked.Increment(ref callCount);
@@ -55,7 +53,7 @@ public class LazyMultiThreadedTests
         var results = new ConcurrentBag<int>();
         var threads = new Thread[10];
 
-        for (int i = 0; i < threads.Length; i++)
+        for (var i = 0; i < threads.Length; i++)
         {
             threads[i] = new Thread(() =>
             {
@@ -80,8 +78,8 @@ public class LazyMultiThreadedTests
     [Test]
     public void Get_ShouldHandleRaceCondition_Correctly()
     {
-        int concurrentCalls = 0;
-        int maxConcurrentCalls = 0;
+        var concurrentCalls = 0;
+        var maxConcurrentCalls = 0;
         var lazy = new LazyMultiThreaded<int>(() =>
         {
             var current = Interlocked.Increment(ref concurrentCalls);
@@ -92,7 +90,7 @@ public class LazyMultiThreadedTests
         });
 
         var threads = new Thread[20];
-        for (int i = 0; i < threads.Length; i++)
+        for (var i = 0; i < threads.Length; i++)
         {
             threads[i] = new Thread(() => lazy.Get());
             threads[i].Start();
@@ -103,7 +101,7 @@ public class LazyMultiThreadedTests
             thread.Join();
         }
 
-        Assert.That(maxConcurrentCalls, Is.EqualTo(1), "Supplier should not be called concurrently");
+        Assert.That(maxConcurrentCalls, Is.EqualTo(1));
     }
 
     [Test]
@@ -121,7 +119,7 @@ public class LazyMultiThreadedTests
         var lazy = new LazyMultiThreaded<int>(() =>
             throw new InvalidOperationException());
 
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             Assert.Throws<InvalidOperationException>(() => lazy.Get());
         }

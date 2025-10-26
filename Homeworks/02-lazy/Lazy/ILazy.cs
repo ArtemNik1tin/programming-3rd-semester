@@ -10,7 +10,7 @@ namespace Lazy;
 /// On subsequent calls, returns the previously calculated value.
 /// </summary>
 /// <typeparam name="T">The type of the value that will be lazily initialized.</typeparam>
-public interface ILazy<T>
+public interface ILazy<out T>
 {
     /// <summary>
     /// Gets the lazily initialized value of type <typeparamref name="T"/>.

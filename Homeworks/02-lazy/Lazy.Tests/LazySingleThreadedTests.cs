@@ -11,9 +11,7 @@ public class LazySingleThreadedTests
     [Test]
     public void Constructor_WithNullSupplier_ThrowsArgumentNullException()
     {
-        Func<string> nullSupplier = null!;
-
-        Assert.Throws<ArgumentNullException>(() => new LazySingleThreaded<string>(nullSupplier));
+        Assert.Throws<ArgumentNullException>(() => { _ = new LazySingleThreaded<string>(null!); });
     }
 
     [Test]

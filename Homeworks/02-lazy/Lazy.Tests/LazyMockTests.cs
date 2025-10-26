@@ -14,7 +14,7 @@ public class LazyMockTests
     [Test]
     public void Get_Should_ReturnValueFromSupplier_OnFirstCall()
     {
-        var expectedValue = 42;
+        const int expectedValue = 42;
         var mockLazy = new Mock<ILazy<int>>();
         mockLazy.Setup(l => l.Get()).Returns(expectedValue);
 
@@ -27,7 +27,7 @@ public class LazyMockTests
     [Test]
     public void Get_Should_ReturnSameValue_OnSubsequentCalls()
     {
-        var expectedValue = "test";
+        const string expectedValue = "test";
         var mockLazy = new Mock<ILazy<string>>();
         mockLazy.Setup(l => l.Get()).Returns(expectedValue);
 

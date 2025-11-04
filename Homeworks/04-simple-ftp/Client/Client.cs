@@ -1,6 +1,10 @@
-﻿using System.Net.Sockets;
+﻿// <copyright file="Client.cs" company="ArtemNikit1n">
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
+// </copyright>
 
 namespace Client;
+
+using System.Net.Sockets;
 
 public class Client(string host = "localhost", int port = 8080) : IDisposable
 {
@@ -16,7 +20,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
 
     public async Task ConnectAsync()
     {
-        this.client = new TcpClient(host, port);
+        this.client = new TcpClient();
         await this.client.ConnectAsync(host, port);
         this.stream = this.client.GetStream();
         this.reader = new StreamReader(this.stream);
@@ -28,6 +32,16 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
         if (this.reader == null || this.writer == null)
         {
             throw new InvalidOperationException("Client not connected");
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return new ListResult { Success = false, ErrorMessage = $"{BadRequestCode} Bad Request: Path cannot be empty" };
+        }
+
+        if (path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            return new ListResult { Success = false, ErrorMessage = $"{BadRequestCode} Bad Request: Invalid path characters" };
         }
 
         await this.writer.WriteLineAsync($"1 {path}");
@@ -62,12 +76,17 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
             var parts = response.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 0)
             {
-                return new ListResult { Success = false, ErrorMessage = "Invalid response format" };
+                return new ListResult { Success = false, ErrorMessage = "Invalid response format: empty response" };
             }
 
-            if (!int.TryParse(parts[0], out var count))
+            if (!int.TryParse(parts[0], out _))
             {
                 return new ListResult { Success = false, ErrorMessage = "Invalid the number of files and folders in the directory in response" };
+            }
+
+            if ((parts.Length - 1) % 2 != 0)
+            {
+                return new ListResult { Success = false, ErrorMessage = "Invalid response format: mismatched name/isDir pairs" };
             }
 
             var items = new List<FileSystemItem>();
@@ -80,7 +99,13 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
                 }
 
                 var name = parts[i];
-                var isDir = parts[i + 1] == "true";
+                var isDirStr = parts[i + 1];
+                if (isDirStr != "true" && isDirStr != "false")
+                {
+                    return new ListResult { Success = false, ErrorMessage = $"Invalid response format: invalid isDir value '{isDirStr}'" };
+                }
+
+                var isDir = isDirStr == "true";
 
                 items.Add(new FileSystemItem { Name = name, IsDirectory = isDir });
             }
@@ -90,7 +115,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
                 Success = true,
                 Items = items,
                 DirectoryExists = true,
-                Count = count,
+                Count = items.Count,
             };
         }
         catch (Exception ex)

@@ -7,7 +7,7 @@ namespace Server;
 using System.Net;
 using System.Net.Sockets;
 
-public class Server(int port) : IDisposable
+public class Server(int port = 8080) : IDisposable
 {
     private const string DirectoryNotFoundResponse = "-1";
     private const string BadRequestCode = "400";
@@ -62,7 +62,14 @@ public class Server(int port) : IDisposable
 
         this.listener.Value.Stop();
         this.serverCts.Cancel();
-        Task.WaitAll(this.currentTasks, this.serverCts.Token);
+        try
+        {
+            Task.WaitAll(this.currentTasks.ToArray());
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
         this.listener.Value.Dispose();
         this.serverCts.Dispose();
     }
@@ -132,7 +139,7 @@ public class Server(int port) : IDisposable
                     continue;
                 }
 
-                result.AppendLine($" {name} {(isDirectory ? "true" : "false")}");
+                result.Append($" {name} {(isDirectory ? "true" : "false")} ");
             }
 
             result.Append('\n');

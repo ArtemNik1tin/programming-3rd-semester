@@ -10,15 +10,16 @@ using System.Net.Sockets;
 #pragma warning disable SA1600
 public class ClientTests
 {
-    private const int TestPort = 8080;
+    private int freePort;
     private TcpListener? testServer;
     private CancellationTokenSource? cts;
 
     [SetUp]
     public void Setup()
     {
+        this.freePort = FindFreePort();
         this.cts = new CancellationTokenSource();
-        this.testServer = new TcpListener(IPAddress.Loopback, TestPort);
+        this.testServer = new TcpListener(IPAddress.Loopback, this.freePort);
         this.testServer.Start();
     }
 
@@ -34,7 +35,7 @@ public class ClientTests
     [Test]
     public void ListDirectoryAsync_Should_ThrowInvalidOperationException_When_ClientNotConnected()
     {
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         const string path = "./test";
 
         Assert.ThrowsAsync<InvalidOperationException>(() => client.ListDirectoryAsync(path));
@@ -43,7 +44,7 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnBadRequest_When_PathIsEmpty()
     {
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync(string.Empty);
@@ -59,7 +60,7 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnBadRequest_When_PathContainsInvalidCharacters()
     {
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("invalid|path*");
@@ -84,7 +85,7 @@ public class ClientTests
             await writer.FlushAsync();
         });
 
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./nonexistent");
@@ -109,7 +110,7 @@ public class ClientTests
             await writer.FlushAsync();
         });
 
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./test");
@@ -142,7 +143,7 @@ public class ClientTests
             client.Close();
         });
 
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./test");
@@ -168,7 +169,7 @@ public class ClientTests
             client.Close();
         });
 
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./test");
@@ -194,7 +195,7 @@ public class ClientTests
             client.Close();
         });
 
-        var client = new Client();
+        var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./test");
@@ -229,7 +230,7 @@ public class ClientTests
                 client.Close();
             });
 
-            var client = new Client();
+            var client = new Client("localhost", this.freePort);
             await client.ConnectAsync();
 
             var result = await client.ListDirectoryAsync("./test");
@@ -240,5 +241,14 @@ public class ClientTests
                 Assert.That(result.ErrorMessage, Is.EqualTo(errorResponse));
             });
         }
+    }
+
+    private static int FindFreePort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 }

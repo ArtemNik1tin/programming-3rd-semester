@@ -35,7 +35,7 @@ public class ClientTests
     [Test]
     public void ListDirectoryAsync_Should_ThrowInvalidOperationException_When_ClientNotConnected()
     {
-        var client = new Client("localhost", this.freePort);
+        var client = new Client();
         const string path = "./test";
 
         Assert.ThrowsAsync<InvalidOperationException>(() => client.ListDirectoryAsync(path));
@@ -78,11 +78,13 @@ public class ClientTests
     {
         _ = Task.Run(async () =>
         {
-            var client = await this.testServer!.AcceptTcpClientAsync();
-            var stream = client.GetStream();
+            var serverClient = await this.testServer!.AcceptTcpClientAsync();
+            var stream = serverClient.GetStream();
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("-1");
             await writer.FlushAsync();
+            await Task.Delay(100);
+            serverClient.Close();
         });
 
         var client = new Client("localhost", this.freePort);
@@ -103,11 +105,13 @@ public class ClientTests
     {
         _ = Task.Run(async () =>
         {
-            var client = await this.testServer!.AcceptTcpClientAsync();
-            var stream = client.GetStream();
+            var serverClient = await this.testServer!.AcceptTcpClientAsync();
+            var stream = serverClient.GetStream();
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("2 file1.txt false directory true");
             await writer.FlushAsync();
+            await Task.Delay(100);
+            serverClient.Close();
         });
 
         var client = new Client("localhost", this.freePort);
@@ -133,22 +137,23 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnError_When_ServerReturnsMismatchedPairs()
     {
-        var testCompleted = new TaskCompletionSource();
-        _ = Task.Run(async () =>
+        var serverTask = Task.Run(async () =>
         {
-            var client = await this.testServer!.AcceptTcpClientAsync();
-            var stream = client.GetStream();
+            var serverClient = await this.testServer!.AcceptTcpClientAsync();
+            var stream = serverClient.GetStream();
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("2 file1.txt false directory");
             await writer.FlushAsync();
-            await testCompleted.Task;
-            client.Close();
+            await Task.Delay(100);
+            serverClient.Close();
         });
 
         var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./test");
+
+        await serverTask;
 
         Assert.Multiple(() =>
         {
@@ -160,22 +165,23 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnError_When_ServerReturnsInvalidIsDirValue()
     {
-        var testCompleted = new TaskCompletionSource();
-        _ = Task.Run(async () =>
+        var serverTask = Task.Run(async () =>
         {
-            var client = await this.testServer!.AcceptTcpClientAsync();
-            var stream = client.GetStream();
+            var serverClient = await this.testServer!.AcceptTcpClientAsync();
+            var stream = serverClient.GetStream();
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("1 file1.txt invalid");
             await writer.FlushAsync();
-            await testCompleted.Task;
-            client.Close();
+            await Task.Delay(100);
+            serverClient.Close();
         });
 
         var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./test");
+
+        await serverTask;
 
         Assert.Multiple(() =>
         {
@@ -187,22 +193,23 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnError_When_ServerReturnsInvalidCountFormat()
     {
-        var testCompleted = new TaskCompletionSource();
-        _ = Task.Run(async () =>
+        var serverTask = Task.Run(async () =>
         {
-            var client = await this.testServer!.AcceptTcpClientAsync();
-            var stream = client.GetStream();
+            var serverClient = await this.testServer!.AcceptTcpClientAsync();
+            var stream = serverClient.GetStream();
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("invalid file1.txt false");
             await writer.FlushAsync();
-            await testCompleted.Task;
-            client.Close();
+            await Task.Delay(100);
+            serverClient.Close();
         });
 
         var client = new Client("localhost", this.freePort);
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./test");
+
+        await serverTask;
 
         Assert.Multiple(() =>
         {
@@ -223,22 +230,23 @@ public class ClientTests
 
         foreach (var errorResponse in errorResponses)
         {
-            var testCompleted = new TaskCompletionSource();
-            _ = Task.Run(async () =>
+            var serverTask = Task.Run(async () =>
             {
-                var client = await this.testServer!.AcceptTcpClientAsync();
-                var stream = client.GetStream();
+                var serverClient = await this.testServer!.AcceptTcpClientAsync();
+                var stream = serverClient.GetStream();
                 var writer = new StreamWriter(stream);
                 await writer.WriteLineAsync(errorResponse);
                 await writer.FlushAsync();
-                await testCompleted.Task;
-                client.Close();
+                await Task.Delay(100);
+                serverClient.Close();
             });
 
             var client = new Client("localhost", this.freePort);
             await client.ConnectAsync();
 
             var result = await client.ListDirectoryAsync("./test");
+
+            await serverTask;
 
             Assert.Multiple(() =>
             {

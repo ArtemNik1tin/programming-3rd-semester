@@ -6,6 +6,12 @@ namespace Client;
 
 using System.Net.Sockets;
 
+/// <summary>
+/// TCP client for interacting with file server that supports directory listing and file download operations.
+/// Implements IDisposable for proper resource cleanup.
+/// </summary>
+/// <param name="host">Server hostname or IP address (default: localhost).</param>
+/// <param name="port">Server port number (default: 8080).</param>
 public class Client(string host = "localhost", int port = 8080) : IDisposable
 {
     private const string DirectoryNotFoundResponse = "-1";
@@ -18,6 +24,12 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
     private StreamReader? reader;
     private StreamWriter? writer;
 
+    /// <summary>
+    /// Establishes a connection to the server.
+    /// </summary>
+    /// <exception cref="SocketException">Thrown when network connection fails.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when client is disposed.</exception>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task ConnectAsync()
     {
         this.client = new TcpClient();
@@ -27,6 +39,20 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
         this.writer = new StreamWriter(this.stream);
     }
 
+    /// <summary>
+    /// Retrieves directory contents from the server.
+    /// </summary>
+    /// <param name="path">Directory path relative to server's working directory.</param>
+    /// <returns>
+    /// ListResult containing directory contents or error information.
+    /// Files and directories with spaces in names are filtered out by the server.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">Thrown when client is not connected.</exception>
+    /// <remarks>
+    /// Request format: "1 {path}"
+    /// Response format: "size name1 isDir1 name2 isDir2 ..."
+    /// Special response: "-1" when directory doesn't exist.
+    /// </remarks>
     public async Task<ListResult> ListDirectoryAsync(string path)
     {
         if (this.reader == null || this.writer == null)
@@ -51,6 +77,100 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
         return response == null ? new ListResult { Success = false, ErrorMessage = "No response from server" } : ParseListResponse(response);
     }
 
+    /// <summary>
+    /// Downloads a file from the server to local filesystem.
+    /// </summary>
+    /// <param name="path">File path relative to server's working directory.</param>
+    /// <param name="outputFilePath">Local path where the downloaded file will be saved.</param>
+    /// <returns>
+    /// GetResult containing download status, file information, or error details.
+    /// If output file already exists, it will be overwritten.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">Thrown when client is not connected.</exception>
+    /// <remarks>
+    /// Request format: "2 {path}"
+    /// Response format: "size" followed by binary file content
+    /// Special response: "-1" when file doesn't exist.
+    /// </remarks>
+    public async Task<GetResult> GetFileAsync(string path, string outputFilePath)
+    {
+        if (this.reader == null || this.writer == null)
+        {
+            throw new InvalidOperationException("Client not connected");
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return new GetResult { Success = false, ErrorMessage = $"{BadRequestCode} Bad Request: Path cannot be empty" };
+        }
+
+        if (path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            return new GetResult { Success = false, ErrorMessage = $"{BadRequestCode} Bad Request: Invalid path characters" };
+        }
+
+        await this.writer.WriteLineAsync($"2 {path}");
+        await this.writer.FlushAsync();
+
+        var sizeLine = await this.reader.ReadLineAsync();
+        if (sizeLine == null)
+        {
+            return new GetResult { Success = false, ErrorMessage = "No response from server" };
+        }
+
+        if (sizeLine.StartsWith(BadRequestCode) || sizeLine.StartsWith(ForbiddenCode) || sizeLine.StartsWith(InternalServerErrorCode))
+        {
+            return new GetResult { Success = false, ErrorMessage = sizeLine };
+        }
+
+        if (sizeLine == $"{BadRequestCode} Bad Request: File not found")
+        {
+            return new GetResult { Success = true, FileExists = false };
+        }
+
+        if (!long.TryParse(sizeLine, out var fileSize) || fileSize < 0)
+        {
+            return new GetResult { Success = false, ErrorMessage = "Invalid file size in response" };
+        }
+
+        try
+        {
+            await using var fileStream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write);
+            var buffer = new byte[8192];
+            long totalBytesRead = 0;
+
+            while (totalBytesRead < fileSize)
+            {
+                var bytesToRead = (int)Math.Min(buffer.Length, fileSize - totalBytesRead);
+                var bytesRead = await this.stream!.ReadAsync(buffer.AsMemory(0, bytesToRead));
+
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                totalBytesRead += bytesRead;
+            }
+
+            return new GetResult
+            {
+                Success = true,
+                FileExists = true,
+                FileSize = fileSize,
+                DownloadedSize = totalBytesRead,
+                OutputPath = outputFilePath,
+            };
+        }
+        catch (Exception ex)
+        {
+            return new GetResult { Success = false, ErrorMessage = $"Error downloading file: {ex.Message}" };
+        }
+    }
+
+    /// <summary>
+    /// Releases all resources used by the Client.
+    /// </summary>
     public void Dispose()
     {
         this.reader?.Dispose();
@@ -124,23 +244,88 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
         }
     }
 
-    public class ListResult
+    /// <summary>
+    /// Represents the result of a file download operation.
+    /// </summary>
+    public class GetResult
     {
-        public bool Success { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether indicates whether the operation completed successfully.
+        /// </summary>
+        public bool Success { get; init; }
 
-        public string? ErrorMessage { get; set; }
+        /// <summary>
+        /// Gets error message if the operation failed, null otherwise.
+        /// </summary>
+        public string? ErrorMessage { get; init; }
 
-        public bool DirectoryExists { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether indicates whether the requested file exists on the server.
+        /// </summary>
+        public bool FileExists { get; init; }
 
-        public int Count { get; set; }
+        /// <summary>
+        /// Gets size of the file in bytes as reported by the server.
+        /// </summary>
+        public long FileSize { get; init; }
 
-        public List<FileSystemItem> Items { get; set; }
+        /// <summary>
+        /// Gets actual number of bytes downloaded and written to disk.
+        /// </summary>
+        public long DownloadedSize { get; init; }
+
+        /// <summary>
+        /// Gets local file path where the downloaded content was saved.
+        /// Null if file doesn't exist or download failed.
+        /// </summary>
+        public string? OutputPath { get; init; }
     }
 
+    /// <summary>
+    /// Represents the result of a directory listing operation.
+    /// </summary>
+    public class ListResult
+    {
+        /// <summary>
+        /// Gets a value indicating whether indicates whether the operation completed successfully.
+        /// </summary>
+        public bool Success { get; init; }
+
+        /// <summary>
+        /// Gets error message if the operation failed, null otherwise.
+        /// </summary>
+        public string? ErrorMessage { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether indicates whether the requested directory exists on the server.
+        /// </summary>
+        public bool DirectoryExists { get; init; }
+
+        /// <summary>
+        /// Gets number of items in the directory (files and subdirectories).
+        /// </summary>
+        public int Count { get; init; }
+
+        /// <summary>
+        /// Gets collection of files and subdirectories in the requested directory.
+        /// Empty if directory doesn't exist or operation failed.
+        /// </summary>
+        public List<FileSystemItem>? Items { get; init; }
+    }
+
+    /// <summary>
+    /// Represents a single filesystem entry (file or directory).
+    /// </summary>
     public class FileSystemItem
     {
-        public string Name { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets name of the file or directory.
+        /// </summary>
+        public string Name { get; init; } = string.Empty;
 
-        public bool IsDirectory { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether indicates whether this entry is a directory (true) or file (false).
+        /// </summary>
+        public bool IsDirectory { get; init; }
     }
 }

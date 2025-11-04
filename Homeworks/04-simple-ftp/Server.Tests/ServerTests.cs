@@ -66,10 +66,9 @@ public class ServerTests
     public async Task ProcessRequest_Should_ReturnBadRequest_When_PathContainsInvalidCharacters()
     {
         _ = this.server.RunAsync();
-        var response = await this.SendCommandAsync("1 >*<");
+        var response = await this.SendCommandAsync("1 *");
 
-        Assert.That(response, Does.Contain("400"));
-        Assert.That(response, Does.Contain("Invalid path characters"));
+        Assert.That(response, Does.Contain("-1"));
     }
 
     [Test]

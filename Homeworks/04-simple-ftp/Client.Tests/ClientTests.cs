@@ -133,6 +133,7 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnError_When_ServerReturnsMismatchedPairs()
     {
+        var testCompleted = new TaskCompletionSource();
         _ = Task.Run(async () =>
         {
             var client = await this.testServer!.AcceptTcpClientAsync();
@@ -140,6 +141,7 @@ public class ClientTests
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("2 file1.txt false directory");
             await writer.FlushAsync();
+            await testCompleted.Task;
             client.Close();
         });
 
@@ -158,6 +160,7 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnError_When_ServerReturnsInvalidIsDirValue()
     {
+        var testCompleted = new TaskCompletionSource();
         _ = Task.Run(async () =>
         {
             var client = await this.testServer!.AcceptTcpClientAsync();
@@ -165,7 +168,7 @@ public class ClientTests
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("1 file1.txt invalid");
             await writer.FlushAsync();
-            await Task.Delay(100);
+            await testCompleted.Task;
             client.Close();
         });
 
@@ -184,6 +187,7 @@ public class ClientTests
     [Test]
     public async Task ListDirectoryAsync_Should_ReturnError_When_ServerReturnsInvalidCountFormat()
     {
+        var testCompleted = new TaskCompletionSource();
         _ = Task.Run(async () =>
         {
             var client = await this.testServer!.AcceptTcpClientAsync();
@@ -191,7 +195,7 @@ public class ClientTests
             var writer = new StreamWriter(stream);
             await writer.WriteLineAsync("invalid file1.txt false");
             await writer.FlushAsync();
-            await Task.Delay(100);
+            await testCompleted.Task;
             client.Close();
         });
 
@@ -219,6 +223,7 @@ public class ClientTests
 
         foreach (var errorResponse in errorResponses)
         {
+            var testCompleted = new TaskCompletionSource();
             _ = Task.Run(async () =>
             {
                 var client = await this.testServer!.AcceptTcpClientAsync();
@@ -226,7 +231,7 @@ public class ClientTests
                 var writer = new StreamWriter(stream);
                 await writer.WriteLineAsync(errorResponse);
                 await writer.FlushAsync();
-                await Task.Delay(100);
+                await testCompleted.Task;
                 client.Close();
             });
 

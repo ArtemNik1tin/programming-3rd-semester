@@ -94,7 +94,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
     /// </remarks>
     public async Task<GetResult> GetFileAsync(string path, string outputFilePath)
     {
-        if (this.reader == null || this.writer == null)
+        if (this.stream == null || this.reader == null || this.writer == null)
         {
             throw new InvalidOperationException("Client not connected");
         }
@@ -118,14 +118,14 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
             return new GetResult { Success = false, ErrorMessage = "No response from server" };
         }
 
+        if (sizeLine == DirectoryNotFoundResponse)
+        {
+            return new GetResult { Success = true, FileExists = false };
+        }
+
         if (sizeLine.StartsWith(BadRequestCode) || sizeLine.StartsWith(ForbiddenCode) || sizeLine.StartsWith(InternalServerErrorCode))
         {
             return new GetResult { Success = false, ErrorMessage = sizeLine };
-        }
-
-        if (sizeLine == $"{BadRequestCode} Bad Request: File not found")
-        {
-            return new GetResult { Success = true, FileExists = false };
         }
 
         if (!long.TryParse(sizeLine, out var fileSize) || fileSize < 0)
@@ -142,7 +142,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
             while (totalBytesRead < fileSize)
             {
                 var bytesToRead = (int)Math.Min(buffer.Length, fileSize - totalBytesRead);
-                var bytesRead = await this.stream!.ReadAsync(buffer.AsMemory(0, bytesToRead));
+                var bytesRead = await this.stream.ReadAsync(buffer.AsMemory(0, bytesToRead));
 
                 if (bytesRead == 0)
                 {
@@ -210,7 +210,6 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
             }
 
             var items = new List<FileSystemItem>();
-
             for (var i = 1; i < parts.Length; i += 2)
             {
                 if (i + 1 >= parts.Length)

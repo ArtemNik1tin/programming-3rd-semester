@@ -5,11 +5,9 @@
 namespace Client.Tests;
 
 using System.Net;
-
 using System.Net.Sockets;
 
 #pragma warning disable SA1600
-
 public class ClientListTests
 {
     private Server.Server server;
@@ -21,21 +19,16 @@ public class ClientListTests
     public void SetUp()
     {
         this.testDirectory = Path.Combine(Directory.GetCurrentDirectory(), "ClientListTest_" + Guid.NewGuid().ToString("N"));
-
         this.testSubDirectory = Path.Combine(this.testDirectory, "SubDirectory");
 
         Directory.CreateDirectory(this.testDirectory);
-
         Directory.CreateDirectory(this.testSubDirectory);
 
         File.WriteAllText(Path.Combine(this.testDirectory, "file1.txt"), "content1");
-
         File.WriteAllText(Path.Combine(this.testDirectory, "file2.txt"), "content2");
-
         File.WriteAllText(Path.Combine(this.testSubDirectory, "nested.txt"), "nested content");
 
         this.freePort = FindFreePort();
-
         this.server = new Server.Server(this.freePort);
     }
 
@@ -43,7 +36,6 @@ public class ClientListTests
     public void TearDown()
     {
         this.server.Dispose();
-
         if (Directory.Exists(this.testDirectory))
         {
             Directory.Delete(this.testDirectory, true);
@@ -56,7 +48,6 @@ public class ClientListTests
         _ = this.server.RunAsync();
 
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync(string.Empty);
@@ -64,9 +55,7 @@ public class ClientListTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("400"));
-
             Assert.That(result.ErrorMessage, Does.Contain("Path cannot be empty"));
         });
     }
@@ -77,7 +66,6 @@ public class ClientListTests
         _ = this.server.RunAsync();
 
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("invalid|path*");
@@ -85,9 +73,7 @@ public class ClientListTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("400"));
-
             Assert.That(result.ErrorMessage, Does.Contain("Invalid path characters"));
         });
     }
@@ -98,7 +84,6 @@ public class ClientListTests
         _ = this.server.RunAsync();
 
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("./nonexistent_directory");
@@ -106,9 +91,7 @@ public class ClientListTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.DirectoryExists, Is.False);
-
             Assert.That(result.Items, Is.Empty);
         });
     }
@@ -119,7 +102,6 @@ public class ClientListTests
         _ = this.server.RunAsync();
 
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync(this.testDirectory);
@@ -127,27 +109,19 @@ public class ClientListTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.DirectoryExists, Is.True);
-
             Assert.That(result.Items, Has.Count.EqualTo(3));
 
             var file1 = result.Items!.FirstOrDefault(i => i.Name == "file1.txt");
-
             Assert.That(file1, Is.Not.Null);
-
             Assert.That(file1 is { IsDirectory: true }, Is.False);
 
             var file2 = result.Items!.FirstOrDefault(i => i.Name == "file2.txt");
-
             Assert.That(file2, Is.Not.Null);
-
             Assert.That(file2!.IsDirectory, Is.False);
 
             var subDir = result.Items!.FirstOrDefault(i => i.Name == "SubDirectory");
-
             Assert.That(subDir, Is.Not.Null);
-
             Assert.That(subDir is { IsDirectory: true }, Is.True);
         });
     }
@@ -158,7 +132,6 @@ public class ClientListTests
         _ = this.server.RunAsync();
 
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync("../../");
@@ -166,9 +139,7 @@ public class ClientListTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("403"));
-
             Assert.That(result.ErrorMessage, Does.Contain("Access denied"));
         });
     }
@@ -177,13 +148,11 @@ public class ClientListTests
     public async Task ListDirectoryAsync_Should_SkipFilesWithSpacesInNames()
     {
         var fileWithSpace = Path.Combine(this.testDirectory, "file with space.txt");
-
         await File.WriteAllTextAsync(fileWithSpace, "content");
 
         _ = this.server.RunAsync();
 
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var result = await client.ListDirectoryAsync(this.testDirectory);
@@ -197,7 +166,6 @@ public class ClientListTests
         _ = this.server.RunAsync();
 
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), this.testDirectory);
@@ -207,9 +175,7 @@ public class ClientListTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.DirectoryExists, Is.True);
-
             Assert.That(result.Items, Has.Count.GreaterThanOrEqualTo(2));
         });
     }
@@ -228,9 +194,7 @@ public class ClientListTests
                 try
                 {
                     using var client = new Client("localhost", this.freePort);
-
                     await client.ConnectAsync();
-
                     return await client.ListDirectoryAsync(this.testDirectory);
                 }
                 catch
@@ -245,7 +209,6 @@ public class ClientListTests
         var completedResults = await Task.WhenAll(clientTasks);
 
         Assert.That(completedResults, Has.Length.EqualTo(3));
-
         Assert.That(completedResults.All(r => r.Success && r.DirectoryExists), Is.True);
     }
 
@@ -253,7 +216,6 @@ public class ClientListTests
     public async Task ListDirectoryAsync_Should_ReturnEmptyList_When_DirectoryIsEmpty()
     {
         var emptyDirectory = Path.Combine(Directory.GetCurrentDirectory(), "EmptyTest_" + Guid.NewGuid().ToString("N"));
-
         Directory.CreateDirectory(emptyDirectory);
 
         try
@@ -261,7 +223,6 @@ public class ClientListTests
             _ = this.server.RunAsync();
 
             using var client = new Client("localhost", this.freePort);
-
             await client.ConnectAsync();
 
             var result = await client.ListDirectoryAsync(emptyDirectory);
@@ -269,11 +230,8 @@ public class ClientListTests
             Assert.Multiple(() =>
             {
                 Assert.That(result.Success, Is.True);
-
                 Assert.That(result.DirectoryExists, Is.True);
-
                 Assert.That(result.Items, Is.Empty);
-
                 Assert.That(result.Count, Is.EqualTo(0));
             });
         }
@@ -297,13 +255,9 @@ public class ClientListTests
     private static int FindFreePort()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
-
         listener.Start();
-
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-
         listener.Stop();
-
         return port;
     }
 }

@@ -230,7 +230,6 @@ public class Server(int port = 8080) : IDisposable
             await using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             var buffer = new byte[8192];
             int bytesRead;
-
             while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
             {
                 await stream.WriteAsync(buffer.AsMemory(0, bytesRead));

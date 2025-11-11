@@ -9,7 +9,7 @@ using System.Net;
 using System.Net.Sockets;
 
 #pragma warning disable SA1600
-
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 public class ClientGetTests
 {
     private Server.Server server;
@@ -23,25 +23,15 @@ public class ClientGetTests
     public void SetUp()
     {
         this.testDirectory = Path.Combine(Directory.GetCurrentDirectory(), "ClientGetTest_" + Guid.NewGuid().ToString("N"));
-
         this.testFile = Path.Combine(this.testDirectory, "testfile.txt");
-
         this.largeTestFile = Path.Combine(this.testDirectory, "largefile.bin");
-
         this.tempOutputDir = Path.Combine(Directory.GetCurrentDirectory(), "ClientGetOutput_" + Guid.NewGuid().ToString("N"));
-
         Directory.CreateDirectory(this.testDirectory);
-
         Directory.CreateDirectory(this.tempOutputDir);
-
         File.WriteAllText(this.testFile, "Hello! This is test file content for download.");
-
         var largeContent = new string('X', 100000);
-
         File.WriteAllText(this.largeTestFile, largeContent);
-
         this.freePort = FindFreePort();
-
         this.server = new Server.Server(this.freePort);
     }
 
@@ -75,21 +65,15 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnBadRequest_When_PathIsEmpty()
     {
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
 
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
-
         var result = await client.GetFileAsync(string.Empty, outputPath);
-
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("400"));
-
             Assert.That(result.ErrorMessage, Does.Contain("Path cannot be empty"));
         });
     }
@@ -98,21 +82,15 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnBadRequest_When_PathContainsInvalidCharacters()
     {
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
-
         var result = await client.GetFileAsync("invalid|path*.txt", outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("400"));
-
             Assert.That(result.ErrorMessage, Does.Contain("Invalid path characters"));
         });
     }
@@ -121,25 +99,17 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnFileNotFound_When_FileDoesNotExist()
     {
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
-
         var result = await client.GetFileAsync($"./nonexistent_file_{Guid.NewGuid():N}.txt", outputPath);
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.Success, Is.False);
-
+            Assert.That(result.Success, Is.True);
             Assert.That(result.FileExists, Is.False);
-
             Assert.That(result.FileSize, Is.EqualTo(0));
-
             Assert.That(result.DownloadedSize, Is.EqualTo(0));
-
             Assert.That(File.Exists(outputPath), Is.False);
         });
     }
@@ -148,31 +118,20 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_DownloadFileSuccessfully_When_FileExists()
     {
         var testContent = "Hello! This is test file content for download.";
-
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "downloaded.txt");
-
         var result = await client.GetFileAsync(this.testFile, outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.FileExists, Is.True);
-
             Assert.That(result.FileSize, Is.EqualTo(testContent.Length));
-
             Assert.That(result.DownloadedSize, Is.EqualTo(testContent.Length));
-
             Assert.That(result.OutputPath, Is.EqualTo(outputPath));
-
             Assert.That(File.Exists(outputPath), Is.True);
-
             Assert.That(File.ReadAllText(outputPath), Is.EqualTo(testContent));
         });
     }
@@ -181,29 +140,19 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_DownloadLargeFileCorrectly_When_FileIsLarge()
     {
         var largeContent = new string('X', 100000);
-
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "large_downloaded.bin");
-
         var result = await client.GetFileAsync(this.largeTestFile, outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.FileExists, Is.True);
-
             Assert.That(result.FileSize, Is.EqualTo(largeContent.Length));
-
             Assert.That(result.DownloadedSize, Is.EqualTo(largeContent.Length));
-
             Assert.That(File.Exists(outputPath), Is.True);
-
             Assert.That(File.ReadAllText(outputPath), Is.EqualTo(largeContent));
         });
     }
@@ -212,21 +161,15 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnForbidden_When_PathIsOutsideCurrentDirectory()
     {
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
-
         var result = await client.GetFileAsync("../../sensitive.txt", outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("403"));
-
             Assert.That(result.ErrorMessage, Does.Contain("Access denied"));
         });
     }
@@ -235,21 +178,15 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnBadRequest_When_PathIsDirectory()
     {
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
-
         var result = await client.GetFileAsync(this.testDirectory, outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("400"));
-
             Assert.That(result.ErrorMessage, Does.Contain("Path is a directory, not a file"));
         });
     }
@@ -258,25 +195,17 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_WorkWithRelativePath_When_FileInCurrentDirectory()
     {
         var relativeTestFile = Path.GetRelativePath(Directory.GetCurrentDirectory(), this.testFile);
-
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "relative_downloaded.txt");
-
         var result = await client.GetFileAsync($"./{relativeTestFile}", outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.FileExists, Is.True);
-
             Assert.That(File.Exists(outputPath), Is.True);
-
             Assert.That(File.ReadAllText(outputPath), Is.EqualTo(File.ReadAllText(this.testFile)));
         });
     }
@@ -285,31 +214,20 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_DownloadZeroByteFile_When_FileIsEmpty()
     {
         var emptyFile = Path.Combine(this.testDirectory, "empty.txt");
-
         await File.WriteAllTextAsync(emptyFile, string.Empty);
-
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "empty_downloaded.txt");
-
         var result = await client.GetFileAsync(emptyFile, outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.FileExists, Is.True);
-
             Assert.That(result.FileSize, Is.EqualTo(0));
-
             Assert.That(result.DownloadedSize, Is.EqualTo(0));
-
             Assert.That(File.Exists(outputPath), Is.True);
-
             Assert.That(File.ReadAllText(outputPath), Is.Empty);
         });
     }
@@ -318,25 +236,19 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_HandleMultipleClientsSimultaneously()
     {
         _ = this.server.RunAsync();
-
         var clientTasks = new List<Task<Client.GetResult>>();
-
         var outputFiles = new List<string>();
 
         for (var i = 0; i < 3; i++)
         {
             var outputPath = Path.Combine(this.tempOutputDir, $"parallel_{i}.txt");
-
             outputFiles.Add(outputPath);
-
             var clientTask = Task.Run(async () =>
             {
                 try
                 {
                     using var client = new Client("localhost", this.freePort);
-
                     await client.ConnectAsync();
-
                     return await client.GetFileAsync(this.testFile, outputPath);
                 }
                 catch
@@ -349,16 +261,16 @@ public class ClientGetTests
         }
 
         var completedResults = await Task.WhenAll(clientTasks);
-
         Assert.That(completedResults, Has.Length.EqualTo(3));
-
         Assert.That(completedResults.All(r => r.Success && r.FileExists), Is.True);
 
         foreach (var outputFile in outputFiles)
         {
-            Assert.That(File.Exists(outputFile), Is.True);
-
-            Assert.That(await File.ReadAllTextAsync(outputFile), Is.EqualTo(File.ReadAllText(this.testFile)));
+            await Assert.MultipleAsync(async () =>
+            {
+                Assert.That(File.Exists(outputFile), Is.True);
+                Assert.That(await File.ReadAllTextAsync(outputFile), Is.EqualTo(await File.ReadAllTextAsync(this.testFile)));
+            });
         }
     }
 
@@ -366,25 +278,17 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_OverwriteOutputFile_When_OutputFileAlreadyExists()
     {
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var outputPath = Path.Combine(this.tempOutputDir, "existing.txt");
-
         await File.WriteAllTextAsync(outputPath, "Old content that should be overwritten");
-
         var result = await client.GetFileAsync(this.testFile, outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-
             Assert.That(result.FileExists, Is.True);
-
             Assert.That(File.ReadAllText(outputPath), Is.EqualTo(File.ReadAllText(this.testFile)));
-
             Assert.That(File.ReadAllText(outputPath), Is.Not.EqualTo("Old content that should be overwritten"));
         });
     }
@@ -394,23 +298,16 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnError_When_OutputDirectoryDoesNotExist()
     {
         _ = this.server.RunAsync();
-
         using var client = new Client("localhost", this.freePort);
-
         await client.ConnectAsync();
-
         var nonExistentDir = Path.Combine(Directory.GetCurrentDirectory(), "NonExistentDir_" + Guid.NewGuid().ToString("N"));
-
         var outputPath = Path.Combine(nonExistentDir, "output.txt");
-
         var result = await client.GetFileAsync(this.testFile, outputPath);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.False);
-
             Assert.That(result.ErrorMessage, Does.Contain("Error downloading file"));
-
             Assert.That(File.Exists(outputPath), Is.False);
         });
     }
@@ -418,13 +315,9 @@ public class ClientGetTests
     private static int FindFreePort()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
-
         listener.Start();
-
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-
         listener.Stop();
-
         return port;
     }
 }

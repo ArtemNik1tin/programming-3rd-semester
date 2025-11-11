@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using System.Text;
 
 #pragma warning disable SA1600
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 public class ServerGetTests
 {
     private const string TestFileContent = "Hello! This is test file content.";

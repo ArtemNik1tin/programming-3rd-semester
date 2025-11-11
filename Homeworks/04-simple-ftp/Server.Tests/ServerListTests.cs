@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Sockets;
 
 #pragma warning disable SA1600
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 public class ServerListTests
 {
     private string testDirectory = string.Empty;

@@ -4,6 +4,8 @@
 
 namespace Lazy;
 
+using System.Diagnostics;
+
 /// <summary>
 /// Provides a simple, non-thread-safe implementation of the <see cref="ILazy{T}"/> interface.
 /// This implementation is intended for use in single-threaded scenarios only.
@@ -25,7 +27,7 @@ public class LazySingleThreaded<T>(Func<T> supplier) : ILazy<T>
     /// If <see cref="Get"/> is called for the first time, this method will execute the supplier delegate,
     /// store the result, and then return it. Subsequent calls will return the stored value without
     /// re-executing the supplier.
-    /// </remarks>ы
+    /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// Thrown if the supplier delegate was set to <see langword="null"/> internally before
     /// the value could be initialized. This indicates a severe initialization error and should not
@@ -33,22 +35,14 @@ public class LazySingleThreaded<T>(Func<T> supplier) : ILazy<T>
     /// </exception>
     public T? Get()
     {
-        if (this.isValueCreated)
+        if (this.isValueCreated || this.supplier == null)
         {
             return this.value;
         }
 
-        if (this.supplier is not null)
-        {
-            this.value = this.supplier();
-            this.isValueCreated = true;
-            this.supplier = null;
-        }
-        else
-        {
-            throw new InvalidOperationException(
-                "Failed to initialize the lazy value. The supplier delegate is unavailable.");
-        }
+        this.value = this.supplier();
+        this.isValueCreated = true;
+        this.supplier = null;
 
         return this.value;
     }

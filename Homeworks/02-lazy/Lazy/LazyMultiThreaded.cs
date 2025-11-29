@@ -15,7 +15,7 @@ public class LazyMultiThreaded<T>(Func<T> supplier) : ILazy<T>
     private readonly Lock lockObject = new();
     private Func<T>? supplier = supplier ?? throw new ArgumentNullException(nameof(supplier));
     private T? value;
-    private bool isValueCreated;
+    private volatile bool isValueCreated;
 
     /// <inheritdoc/>
     /// <remarks>
@@ -38,22 +38,14 @@ public class LazyMultiThreaded<T>(Func<T> supplier) : ILazy<T>
 
         lock (this.lockObject)
         {
-            if (this.isValueCreated)
+            if (this.isValueCreated || this.supplier == null)
             {
                 return this.value;
             }
 
-            if (this.supplier is not null)
-            {
-                this.value = this.supplier();
-                this.isValueCreated = true;
-                this.supplier = null;
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    "Failed to initialize the lazy value. The supplier delegate is unavailable.");
-            }
+            this.value = this.supplier();
+            this.isValueCreated = true;
+            this.supplier = null;
         }
 
         return this.value;

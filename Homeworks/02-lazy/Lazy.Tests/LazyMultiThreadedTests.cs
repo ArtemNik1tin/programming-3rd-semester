@@ -46,20 +46,26 @@ public class LazyMultiThreadedTests
         var lazy = new LazyMultiThreaded<int>(() =>
         {
             Interlocked.Increment(ref callCount);
-            Thread.Sleep(100);
             return 42;
         });
 
         var results = new ConcurrentBag<int>();
         var threads = new Thread[10];
 
+        Barrier barrier = new(threads.Length);
+
         for (var i = 0; i < threads.Length; i++)
         {
             threads[i] = new Thread(() =>
             {
+                barrier.SignalAndWait();
                 results.Add(lazy.Get());
             });
-            threads[i].Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
         }
 
         foreach (var thread in threads)
@@ -70,38 +76,9 @@ public class LazyMultiThreadedTests
         Assert.Multiple(() =>
         {
             Assert.That(callCount, Is.EqualTo(1));
-            Assert.That(results, Has.All.EqualTo(42));
             Assert.That(results, Has.Count.EqualTo(10));
+            Assert.That(results, Has.All.EqualTo(42));
         });
-    }
-
-    [Test]
-    public void Get_ShouldHandleRaceCondition_Correctly()
-    {
-        var concurrentCalls = 0;
-        var maxConcurrentCalls = 0;
-        var lazy = new LazyMultiThreaded<int>(() =>
-        {
-            var current = Interlocked.Increment(ref concurrentCalls);
-            maxConcurrentCalls = Math.Max(maxConcurrentCalls, current);
-            Thread.Sleep(50);
-            Interlocked.Decrement(ref concurrentCalls);
-            return 100;
-        });
-
-        var threads = new Thread[20];
-        for (var i = 0; i < threads.Length; i++)
-        {
-            threads[i] = new Thread(() => lazy.Get());
-            threads[i].Start();
-        }
-
-        foreach (var thread in threads)
-        {
-            thread.Join();
-        }
-
-        Assert.That(maxConcurrentCalls, Is.EqualTo(1));
     }
 
     [Test]

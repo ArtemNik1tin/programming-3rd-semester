@@ -8,51 +8,38 @@ namespace Lazy.Tests;
 #pragma warning disable SA1600
 public class LazyCommonTests
 {
-    [Test]
-    public void Get_Should_ReturnCorrectValue_ForInt()
+    public static IEnumerable<TestCaseData> TestCases
     {
-        foreach (var lazy in GetLazyImplementations(() => 42))
+        get
         {
-            var result = lazy.Get();
-            Assert.That(result, Is.EqualTo(42));
+            yield return new TestCaseData((Func<int>)(() => 42), 42);
+
+            yield return new TestCaseData((Func<string>)(() => "test"), "test");
+
+            var expectedObject = new object();
+            yield return new TestCaseData(
+                (Func<object>)(() => expectedObject), expectedObject);
+
+            yield return new TestCaseData((Func<string>)(() => null!), null);
         }
     }
 
     [Test]
-    public void Get_Should_ReturnCorrectValue_ForString()
+    [TestCaseSource(nameof(TestCases))]
+    public void Get_Should_ReturnCorrectValue<T>(Func<T> supplier, T expected)
     {
-        foreach (var lazy in GetLazyImplementations(() => "test"))
+        foreach (var lazy in GetLazyImplementations(supplier))
         {
             var result = lazy.Get();
-            Assert.That(result, Is.EqualTo("test"));
+            Assert.That(result, Is.EqualTo(expected));
         }
     }
 
     [Test]
-    public void Get_Should_ReturnCorrectValue_ForObject()
+    [TestCaseSource(nameof(TestCases))]
+    public void Get_Should_ReturnSameValue_OnSubsequentCalls<T>(Func<T> supplier, T expected)
     {
-        var expected = new object();
-        foreach (var lazy in GetLazyImplementations(() => expected))
-        {
-            var result = lazy.Get();
-            Assert.That(result, Is.SameAs(expected));
-        }
-    }
-
-    [Test]
-    public void Get_Should_HandleNullResult()
-    {
-        foreach (var lazy in GetLazyImplementations<string>(() => null!))
-        {
-            var result = lazy.Get();
-            Assert.That(result, Is.Null);
-        }
-    }
-
-    [Test]
-    public void Get_Should_ReturnSameValue_OnSubsequentCalls()
-    {
-        foreach (var lazy in GetLazyImplementations(() => 42))
+        foreach (var lazy in GetLazyImplementations(supplier))
         {
             var result1 = lazy.Get();
             var result2 = lazy.Get();
@@ -60,9 +47,10 @@ public class LazyCommonTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(result1, Is.EqualTo(42));
-                Assert.That(result2, Is.EqualTo(42));
-                Assert.That(result3, Is.EqualTo(42));
+                Assert.That(result1, Is.EqualTo(expected));
+                Assert.That(result2, Is.EqualTo(expected));
+                Assert.That(result3, Is.EqualTo(expected));
+                Assert.That(result3, Is.EqualTo(result1));
             });
         }
     }

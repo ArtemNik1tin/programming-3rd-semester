@@ -12,7 +12,7 @@ using MyNUnit.UsersAttributes;
 /// Responsible for detecting tests in assemblies.
 /// Analyzes types and methods in the assembly, finds methods with testing attributes.
 /// </summary>
-public class TestDiscoverer
+public static class TestDiscoverer
 {
     /// <summary>
     /// Detects all tests in the specified assembly.

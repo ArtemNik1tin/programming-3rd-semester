@@ -9,17 +9,17 @@ namespace MyNUnit.UsersAttributes;
 /// Is applied to methods to indicate that they are tests.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-public abstract class TestAttribute(string ignore, Type expectedException) : Attribute
+public class TestAttribute(string? ignore, Type? expectedException) : Attribute
 {
     /// <summary>
     /// Gets the type of expected exception.
     /// If specified, the test is considered successful only if an exception to this type is thrown.
     /// </summary>
-    public Type ExpectedException { get; } = expectedException;
+    public Type? ExpectedException { get; } = expectedException;
 
     /// <summary>
     /// Gets the reason for ignoring the test.
     /// If there is no empty line, the test will be skipped with the specified reason.
     /// </summary>
-    public string Ignore { get; } = ignore;
+    public string? Ignore { get; } = ignore;
 }

@@ -51,7 +51,10 @@ public static class TestReporter
 
                 if (result.Messages.Count > 0)
                 {
-                    output.WriteLine($"   {result.Messages}");
+                    foreach (var message in result.Messages)
+                    {
+                        output.WriteLine($"   {message}");
+                    }
                 }
 
                 if (result.Exception != null)

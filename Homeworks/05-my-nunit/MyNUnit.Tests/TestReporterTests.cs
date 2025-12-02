@@ -4,6 +4,7 @@
 
 namespace MyNUnit.Tests;
 
+using System.Collections.Concurrent;
 using MyNUnit.DataModels;
 
 #pragma warning disable SA1600
@@ -27,14 +28,14 @@ public class TestReporterTests
                 "TestMethod2",
                 TestStatus.Failed,
                 TimeSpan.FromMilliseconds(200),
-                ["Test failed"],
+                new ConcurrentStack<string>(["Test failed"]),
                 new InvalidOperationException("Error occurred")),
             new TestResult(
                 "TestClass2",
                 "TestMethod3",
                 TestStatus.Ignored,
                 TimeSpan.Zero,
-                ["Ignored: Reason"],
+                new ConcurrentStack<string>(["Ignored: Reason"]),
                 null),
         };
 

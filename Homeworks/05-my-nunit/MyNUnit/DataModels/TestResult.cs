@@ -4,6 +4,8 @@
 
 namespace MyNUnit.DataModels;
 
+using System.Collections.Concurrent;
+
 /// <summary>
 /// Represents the result of a single test.
 /// Contains information about the status, duration, and possible errors.
@@ -13,7 +15,7 @@ public class TestResult(
     string testMethod,
     TestStatus status,
     TimeSpan duration,
-    List<string> messages,
+    ConcurrentStack<string> messages,
     Exception? exception)
 {
     /// <summary>
@@ -29,23 +31,23 @@ public class TestResult(
     /// <summary>
     /// Gets the test execution status.
     /// </summary>
-    public TestStatus Status { get; init; } = status;
+    public TestStatus Status { get; } = status;
 
     /// <summary>
     /// Gets the duration of the test execution.
     /// </summary>
-    public TimeSpan Duration { get; init; } = duration;
+    public TimeSpan Duration { get; } = duration;
 
     /// <summary>
     /// Gets receives or sets an additional message about the test result.
     /// </summary>
-    public List<string> Messages { get; init; } = messages;
+    public ConcurrentStack<string> Messages { get; } = messages;
 
     /// <summary>
     /// Gets an exception that occurred during the execution of the test.
     /// It can be null if the test is successful.
     /// </summary>
-    public Exception? Exception { get; init; } = exception;
+    public Exception? Exception { get; } = exception;
 
     /// <summary>
     /// Adds a message.
@@ -53,6 +55,6 @@ public class TestResult(
     /// <param name="message">The message being added.</param>
     public void AddMessage(string message)
     {
-        this.Messages.Add(message);
+        this.Messages.Push(message);
     }
 }

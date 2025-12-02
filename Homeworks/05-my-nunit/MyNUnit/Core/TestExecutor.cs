@@ -4,8 +4,11 @@
 
 namespace MyNUnit.Core;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
+
+// ReSharper disable once RedundantNameQualifier
 using MyNUnit.DataModels;
 
 /// <summary>
@@ -44,10 +47,10 @@ public static class TestExecutor
         return classResults.SelectMany(r => r).ToList();
     }
 
-    private static async Task<List<TestResult>> RunTestsInClassAsync(List<TestInfo> testsInClass)
+    private static async Task<ConcurrentBag<TestResult>> RunTestsInClassAsync(List<TestInfo> testsInClass)
     {
         ArgumentNullException.ThrowIfNull(testsInClass);
-        var results = new List<TestResult>();
+        var results = new ConcurrentBag<TestResult>();
         if (testsInClass.Count == 0)
         {
             return results;
@@ -63,20 +66,26 @@ public static class TestExecutor
         catch (Exception ex)
         {
             var actualException = ex is TargetInvocationException tie ? tie.InnerException ?? ex : ex;
-            results.AddRange(testsInClass.Select(testInfo => new TestResult(
-                testInfo.TestClass.Name,
-                testInfo.TestMethod.Name,
-                TestStatus.Failed,
-                TimeSpan.Zero,
-                [$"BeforeClass failed: {actualException.Message}"],
-                actualException)));
+            foreach (var testResult in testsInClass.Select(testInfo => new TestResult(
+                         testInfo.TestClass.Name,
+                         testInfo.TestMethod.Name,
+                         TestStatus.Failed,
+                         TimeSpan.Zero,
+                         new ConcurrentStack<string>([$"BeforeClass failed: {actualException.Message}"]),
+                         actualException)))
+            {
+                results.Add(testResult);
+            }
+
             return results;
         }
 
-        foreach (var testInfo in testsInClass)
+        var testTasks = testsInClass.Select(testInfo => Task.Run(() => RunTestAsync(testInfo).Result)).ToList();
+
+        var testResults = await Task.WhenAll(testTasks);
+        foreach (var testResult in testResults)
         {
-            var result = await RunTestAsync(testInfo);
-            results.Add(result);
+            results.Add(testResult);
         }
 
         try
@@ -88,7 +97,7 @@ public static class TestExecutor
             var actualException = ex is TargetInvocationException tie ? tie.InnerException ?? ex : ex;
             foreach (var result in results)
             {
-                result.AddMessage($"\n Warning: AfterClass failed: {actualException.Message}");
+                result.AddMessage($"\nWarning: AfterClass failed: {actualException.Message}");
             }
         }
 
@@ -108,7 +117,7 @@ public static class TestExecutor
                 testMethod,
                 TestStatus.Ignored,
                 TimeSpan.Zero,
-                [$"Ignored: {testInfo.IgnoreReason}"],
+                new ConcurrentStack<string>([$"Ignored: {testInfo.IgnoreReason}"]),
                 null);
         }
 
@@ -119,8 +128,8 @@ public static class TestExecutor
             testInstance = Activator.CreateInstance(testInfo.TestClass);
         }
 
-        List<string> testMessages = [];
-        var testStatus = TestStatus.Failed;
+        ConcurrentStack<string> testMessages = [];
+        TestStatus testStatus;
         try
         {
             var beforeMethodsResult = await ExecuteBeforeMethodsAsync(testInfo, testInstance, stopwatch);
@@ -133,7 +142,7 @@ public static class TestExecutor
             testStatus = testInfo.ExpectedException != null ? TestStatus.Failed : TestStatus.Passed;
             if (testInfo.ExpectedException != null)
             {
-                testMessages.Add($"Expected exception {testInfo.ExpectedException.Name} was not thrown");
+                testMessages.Push($"Expected exception {testInfo.ExpectedException.Name} was not thrown");
             }
 
             stopwatch.Stop();
@@ -178,14 +187,14 @@ public static class TestExecutor
                 testInfo.TestMethod.Name,
                 TestStatus.Failed,
                 stopwatch.Elapsed,
-                [$"Before method failed: {actualException.GetType().Name}"],
+                new ConcurrentStack<string>([$"Before method failed: {actualException.GetType().Name}"]),
                 actualException);
         }
 
         return null;
     }
 
-    private static async Task ExecuteAfterMethodsAsync(List<string> result, object? testInstance, List<MethodInfo> afterMethods)
+    private static async Task ExecuteAfterMethodsAsync(ConcurrentStack<string> result, object? testInstance, List<MethodInfo> afterMethods)
     {
         try
         {
@@ -197,7 +206,7 @@ public static class TestExecutor
         catch (Exception ex)
         {
             var actualException = ex is TargetInvocationException tie ? tie.InnerException ?? ex : ex;
-            result.Add($"\nWarning: After method failed: {actualException.Message}");
+            result.Push($"\nWarning: After method failed: {actualException.Message}");
         }
     }
 
@@ -206,7 +215,7 @@ public static class TestExecutor
         stopwatch.Stop();
         var actualException = exception is TargetInvocationException tie ? tie.InnerException ?? exception : exception;
         var testStatus = TestStatus.Failed;
-        List<string> testMessages = [];
+        ConcurrentStack<string> testMessages = [];
         if (testInfo.ExpectedException != null)
         {
             if (testInfo.ExpectedException.IsInstanceOfType(actualException))
@@ -215,14 +224,14 @@ public static class TestExecutor
             }
             else
             {
-                testMessages.Add(
+                testMessages.Push(
                     $"Expected exception {testInfo.ExpectedException.Name} but got {actualException.GetType().Name}: " +
                     $"{actualException.Message}");
             }
         }
         else
         {
-            testMessages.Add(
+            testMessages.Push(
                 $"Unexpected exception: {actualException.Message}");
         }
 

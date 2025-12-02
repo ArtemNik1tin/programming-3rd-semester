@@ -9,4 +9,4 @@ namespace MyNUnit.UsersAttributes;
 /// Is applied to the methods of the class instance.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-public abstract class AfterAttribute : Attribute;
+public class AfterAttribute : Attribute;

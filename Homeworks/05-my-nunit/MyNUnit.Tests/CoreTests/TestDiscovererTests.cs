@@ -61,22 +61,22 @@ public class TestDiscovererTests
         Assert.That(test.BeforeClassMethod, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(test.BeforeClassMethod.Name, Is.EqualTo("MyBeforeClass"));
+            Assert.That(test.BeforeClassMethod.Name, Is.EqualTo("BeforeClass"));
 
             Assert.That(test.AfterClassMethod, Is.Not.Null);
         });
         Assert.Multiple(() =>
         {
-            Assert.That(test.AfterClassMethod.Name, Is.EqualTo("MyAfterClass"));
+            Assert.That(test.AfterClassMethod.Name, Is.EqualTo("AfterClass"));
 
             Assert.That(test.BeforeMethods, Has.Count.EqualTo(1));
         });
         Assert.Multiple(() =>
         {
-            Assert.That(test.BeforeMethods[0].Name, Is.EqualTo("MyBefore"));
+            Assert.That(test.BeforeMethods[0].Name, Is.EqualTo("Before"));
 
-            Assert.That(test.AfterMethods, Has.Count.EqualTo(1));
+            Assert.That(test.AfterMethods, Has.Count.EqualTo(2));
         });
-        Assert.That(test.AfterMethods[0].Name, Is.EqualTo("MyAfter"));
+        Assert.That(test.AfterMethods[0].Name, Is.EqualTo("After"));
     }
 }

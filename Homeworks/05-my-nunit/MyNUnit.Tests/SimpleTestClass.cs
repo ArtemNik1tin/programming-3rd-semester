@@ -14,50 +14,67 @@ public class SimpleTestClass
 
     public static bool AfterClassWasCalled { get; set; }
 
-    private int beforeWasCalledCount = 0;
-    private int afterWasCalledCount = 0;
+    public static int BeforeWasCalledCount { get; private set; }
+
+    public static int AfterWasCalledCount { get; private set; }
+
+    public static bool AfterExceptionThrown { get; private set; }
 
     [BeforeClass]
-    public static void MyBeforeClass()
+    public static void BeforeClass()
     {
         BeforeClassWasCalled = true;
     }
 
     [AfterClass]
-    public static void MyAfterClass()
+    public static void AfterClass()
     {
         AfterClassWasCalled = true;
+        throw new InvalidOperationException("AfterClass exception");
     }
 
     [Before]
-    public void MyBefore()
+    public void Before()
     {
-        this.beforeWasCalledCount++;
+        BeforeWasCalledCount++;
     }
 
     [After]
-    public void MyAfter()
+    public void After()
     {
-        this.afterWasCalledCount++;
+        AfterWasCalledCount++;
     }
 
-    [UsersAttributes.Test(null, null)]
+    [After]
+    public void AfterException()
+    {
+        AfterWasCalledCount++;
+        if (AfterExceptionThrown)
+        {
+            return;
+        }
+
+        AfterExceptionThrown = true;
+        throw new InvalidOperationException("After exception");
+    }
+
+    [Test(null, null)]
     public void PassingTest()
     {
     }
 
-    [UsersAttributes.Test("The test was ignored for a reason", null)]
+    [Test("The test was ignored for a reason", null)]
     public void IgnoredTest()
     {
     }
 
-    [UsersAttributes.Test(null, typeof(InvalidOperationException))]
+    [Test(null, typeof(InvalidOperationException))]
     public void TestWithExpectedException()
     {
         throw new InvalidOperationException("Expected exception");
     }
 
-    [UsersAttributes.Test(null, typeof(InvalidOperationException))]
+    [Test(null, typeof(InvalidOperationException))]
     public void TestWithWrongException()
     {
         throw new ArgumentException("Wrong exception");

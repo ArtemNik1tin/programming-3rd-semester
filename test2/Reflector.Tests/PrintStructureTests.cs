@@ -1,16 +1,14 @@
-﻿namespace Reflector.Tests
+﻿namespace Reflector.Tests;
+public class PrintStructureTests
 {
-    public class Tests
+    [SetUp]
+    public void Setup()
     {
-        [SetUp]
-        public void Setup()
-        {
-        }
+    }
 
-        [Test]
-        public void Test1()
-        {
-            Assert.Pass();
-        }
+    [Test]
+    public void Test1()
+    {
+        Assert.Pass();
     }
 }

@@ -6,6 +6,8 @@ namespace MyNUnitWeb;
 
 using System.Collections.Concurrent;
 using MyNUnit.DataModels;
+
+// ReSharper disable once RedundantNameQualifier
 using MyNUnitWeb.ModelsWeb;
 
 /// <summary>

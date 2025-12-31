@@ -24,4 +24,3 @@ public class TestRun
     /// </summary>
     public List<AssemblyTestResult> AssemblyResults { get; } = [];
 }
-

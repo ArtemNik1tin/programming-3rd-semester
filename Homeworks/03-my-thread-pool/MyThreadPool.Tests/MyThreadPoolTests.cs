@@ -1,5 +1,5 @@
-﻿// <copyright file="MyThreadPoolTests.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+﻿// <copyright file="MyThreadPoolTests.cs" company="ArtemNikit1n">
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 // </copyright>
 
 namespace MyThreadPool.Tests;
@@ -8,18 +8,59 @@ namespace MyThreadPool.Tests;
 #pragma warning disable CS1591 // Missing XML comment for public visible type or member.
 public class MyThreadPoolTests
 {
+    private MyThreadPool pool;
+
+    [SetUp]
+    public void CreatePool()
+        => this.pool = new MyThreadPool(3);
+
+    [TearDown]
+    public void DisposePool()
+        => this.pool.Dispose();
+
+    [Test]
+    public void Constructor_WithNegativeThreads_Should_ThrowArgumentException()
+        => Assert.Throws<ArgumentOutOfRangeException>(() => { _ = new MyThreadPool(-1); });
+
     [Test]
     public void Constructor_WithZeroThreads_Should_ThrowArgumentException()
+        => Assert.Throws<ArgumentOutOfRangeException>(() => { _ = new MyThreadPool(0); });
+
+    [Test]
+    public void Constructor_WithPositiveThreads_Should_CreateSpecifiedNumberOfThreads()
     {
-        Assert.Throws<ArgumentException>(() => { _ = new MyThreadPool(0); });
+        const int threadCount = 5;
+
+        var tasks = new List<IMyTask<int>>();
+        var taskCreatedSignal = new CountdownEvent(threadCount * 2);
+        var taskCompletedSignal = new CountdownEvent(threadCount * 2);
+
+        for (var i = 0; i < threadCount * 2; i++)
+        {
+            tasks.Add(this.pool.Submit(() =>
+            {
+                taskCreatedSignal.Signal();
+                taskCompletedSignal.Signal();
+                return 42;
+            }));
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(taskCreatedSignal.Wait(TimeSpan.FromSeconds(1)));
+            Assert.That(taskCompletedSignal.Wait(TimeSpan.FromSeconds(1)));
+        });
+
+        foreach (var task in tasks)
+        {
+            Assert.That(task.Result, Is.EqualTo(42));
+        }
     }
 
     [Test]
     public void Submit_Should_ExecuteTaskAndReturnResult()
     {
-        using var pool = new MyThreadPool(2);
-
-        var task = pool.Submit(() => 2 + 3);
+        var task = this.pool.Submit(() => 2 + 3);
 
         Assert.Multiple(() =>
         {
@@ -33,9 +74,7 @@ public class MyThreadPoolTests
     [Test]
     public void Submit_WithException_Should_ThrowAggregateExceptionOnResultAccess()
     {
-        using var pool = new MyThreadPool(2);
-
-        var task = pool.Submit<int>(() => throw new InvalidOperationException("Test exception"));
+        var task = this.pool.Submit<int>(() => throw new InvalidOperationException("Test exception"));
 
         Assert.Throws<AggregateException>(() => _ = task.Result);
         Assert.That(task.IsCompleted, Is.True);
@@ -44,19 +83,17 @@ public class MyThreadPoolTests
     [Test]
     public void Submit_AfterShutdown_Should_ThrowInvalidOperationException()
     {
-        var pool = new MyThreadPool(2);
-        pool.Shutdown();
+        this.pool.Shutdown();
 
-        Assert.Throws<InvalidOperationException>(() => pool.Submit(() => 42));
+        Assert.Throws<InvalidOperationException>(() => this.pool.Submit(() => 42));
 
-        pool.Dispose();
+        this.pool.Dispose();
     }
 
     [Test]
     public void ContinueWith_Should_CreateContinuationThatExecutesAfterOriginalTask()
     {
-        using var pool = new MyThreadPool(2);
-        var task1 = pool.Submit(() => 5);
+        var task1 = this.pool.Submit(() => 5);
         _ = task1.Result;
 
         var task2 = task1.ContinueWith(x => x + 1);
@@ -67,8 +104,7 @@ public class MyThreadPoolTests
     [Test]
     public void ContinueWith_MultipleContinuations_Should_AllExecute()
     {
-        using var pool = new MyThreadPool(3);
-        var task1 = pool.Submit(() => 10);
+        var task1 = this.pool.Submit(() => 10);
 
         var task2 = task1.ContinueWith(x => x + 1);
         var task3 = task1.ContinueWith(x => x * 2);
@@ -85,8 +121,7 @@ public class MyThreadPoolTests
     [Test]
     public void ContinueWith_WithNullFunction_Should_ThrowArgumentNullException()
     {
-        using var pool = new MyThreadPool(2);
-        var task = pool.Submit(() => 42);
+        var task = this.pool.Submit(() => 42);
 
         Assert.Throws<ArgumentNullException>(() => task.ContinueWith<int>(null!));
     }
@@ -94,10 +129,8 @@ public class MyThreadPoolTests
     [Test]
     public void Dispose_Should_CallShutdown()
     {
-        var pool = new MyThreadPool(2);
+        this.pool.Dispose();
 
-        pool.Dispose();
-
-        Assert.Throws<InvalidOperationException>(() => pool.Submit(() => 42));
+        Assert.Throws<InvalidOperationException>(() => this.pool.Submit(() => 42));
     }
 }

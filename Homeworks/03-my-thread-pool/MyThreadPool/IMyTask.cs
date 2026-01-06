@@ -12,7 +12,7 @@ namespace MyThreadPool;
 public interface IMyTask<out TResult>
 {
     /// <summary>
-    /// Gets a value indicating whether it gets a value true if the task is completed. If the result is not yet ready, it returns false.
+    /// Gets a value indicating whether true if the task is completed. If the result is not yet ready, it returns false.
     /// </summary>
     public bool IsCompleted { get; }
 

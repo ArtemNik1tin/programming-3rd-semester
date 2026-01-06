@@ -21,12 +21,9 @@ public class MyThreadPool : IDisposable
     /// </summary>
     /// <param name="threadCount">The number of threads in the pool. Must be positive.</param>
     /// <exception cref="ArgumentException">Thrown when threadCount is zero or negative.</exception>
-    public MyThreadPool(uint threadCount)
+    public MyThreadPool(int threadCount)
     {
-        if (threadCount <= 0)
-        {
-            throw new ArgumentException("Thread count must be positive.", nameof(threadCount));
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThan(threadCount, 1);
 
         this.taskQueue = [];
         this.threads = [];

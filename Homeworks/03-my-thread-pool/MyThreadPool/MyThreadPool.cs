@@ -15,6 +15,7 @@ public class MyThreadPool : IDisposable
     private readonly List<Thread> threads;
     private readonly CancellationTokenSource cancellationTokenSource;
     private volatile bool isDisposed;
+    private readonly Lock shutdownLock = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MyThreadPool"/> class with the specified number of threads.
@@ -53,14 +54,17 @@ public class MyThreadPool : IDisposable
     public IMyTask<TResult> Submit<TResult>(Func<TResult> function)
     {
         ArgumentNullException.ThrowIfNull(function);
-        if (this.isDisposed)
+        lock (this.shutdownLock)
         {
-            throw new InvalidOperationException("ThreadPool is shutting down.");
-        }
+            if (this.isDisposed)
+            {
+                throw new InvalidOperationException("ThreadPool is shutting down.");
+            }
 
-        var task = new MyTask<TResult>(function, this);
-        this.taskQueue.Add(task.Execute);
-        return task;
+            var task = new MyTask<TResult>(function, this);
+            this.taskQueue.Add(task.Execute);
+            return task;
+        }
     }
 
     /// <summary>
@@ -69,14 +73,17 @@ public class MyThreadPool : IDisposable
     /// </summary>
     public void Shutdown()
     {
-        if (this.isDisposed)
+        lock (this.shutdownLock)
         {
-            return;
-        }
+            if (this.isDisposed)
+            {
+                return;
+            }
 
-        this.isDisposed = true;
-        this.cancellationTokenSource.Cancel();
-        this.taskQueue.CompleteAdding();
+            this.isDisposed = true;
+            this.cancellationTokenSource.Cancel();
+            this.taskQueue.CompleteAdding();
+        }
 
         foreach (var thread in this.threads)
         {

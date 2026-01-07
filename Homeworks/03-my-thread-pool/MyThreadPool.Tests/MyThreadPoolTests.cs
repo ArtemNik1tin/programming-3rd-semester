@@ -4,6 +4,8 @@
 
 namespace MyThreadPool.Tests;
 
+using System.Collections.Concurrent;
+
 #pragma warning disable SA1600
 #pragma warning disable CS1591 // Missing XML comment for public visible type or member.
 public class MyThreadPoolTests
@@ -132,5 +134,116 @@ public class MyThreadPoolTests
         this.pool.Dispose();
 
         Assert.Throws<InvalidOperationException>(() => this.pool.Submit(() => 42));
+    }
+
+    [Test]
+    public void ContinueWith_DuringShutdown_Should_ThrowInvalidOperationException()
+    {
+        var task = this.pool.Submit(() => 42);
+
+        _ = task.Result;
+
+        this.pool.Shutdown();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            task.ContinueWith(x => x.ToString()));
+    }
+
+    [Test]
+    public void ContinueWith_Chain_Should_ExecuteInCorrectOrder()
+    {
+        var results = new ConcurrentQueue<int>();
+
+        var task = this.pool.Submit(() =>
+        {
+            results.Enqueue(1);
+            return 1;
+        });
+
+        var task2 = task.ContinueWith(x =>
+        {
+            results.Enqueue(2);
+            return x + 1;
+        });
+
+        var task3 = task2.ContinueWith(x =>
+        {
+            results.Enqueue(3);
+            return x + 1;
+        });
+
+        _ = task3.Result;
+
+        var resultList = results.ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(resultList, Has.Count.EqualTo(3));
+            Assert.That(resultList, Is.EqualTo((int[])[1, 2, 3]));
+            Assert.That(task3.Result, Is.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public void Submit_NullFunction_Should_ThrowArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            this.pool.Submit<int>(null!));
+    }
+
+    [Test]
+    public void Dispose_MultipleTimes_Should_NotThrow()
+    {
+        Assert.DoesNotThrow(() =>
+        {
+            this.pool.Dispose();
+            this.pool.Dispose();
+        });
+    }
+
+    [Test]
+    public void Shutdown_MultipleTimes_Should_NotThrow()
+    {
+        Assert.DoesNotThrow(() =>
+        {
+            this.pool.Shutdown();
+            this.pool.Shutdown();
+        });
+    }
+
+    [Test]
+    public void ThreadPool_Should_HandleManyTasks()
+    {
+        const int taskCount = 1000;
+        var results = new ConcurrentBag<int>();
+        var tasks = new List<IMyTask<int>>();
+
+        for (var i = 0; i < taskCount; i++)
+        {
+            var localI = i;
+            tasks.Add(this.pool.Submit(() =>
+            {
+                results.Add(localI);
+                return localI;
+            }));
+        }
+
+        foreach (var task in tasks)
+        {
+            _ = task.Result;
+        }
+
+        Assert.That(results, Has.Count.EqualTo(taskCount));
+    }
+
+    [Test]
+    public void ContinueWith_Should_PropagateExceptions()
+    {
+        var parentTask = this.pool.Submit<int>(() =>
+            throw new InvalidOperationException("Parent failed"));
+
+        var continuation = parentTask.ContinueWith(x => x.ToString());
+
+        Assert.Throws<AggregateException>(() => _ = parentTask.Result);
+        Assert.Throws<AggregateException>(() => _ = continuation.Result);
     }
 }

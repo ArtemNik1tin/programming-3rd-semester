@@ -54,7 +54,7 @@ public class ClientGetTests
     [Test]
     public void GetFileAsync_Should_ThrowInvalidOperationException_When_ClientNotConnected()
     {
-        var client = new Client("localhost", this.freePort);
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
 
@@ -65,8 +65,7 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnBadRequest_When_PathIsEmpty()
     {
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
         var result = await client.GetFileAsync(string.Empty, outputPath);
@@ -82,8 +81,8 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnBadRequest_When_PathContainsInvalidCharacters()
     {
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
         var result = await client.GetFileAsync("invalid|path*.txt", outputPath);
 
@@ -99,8 +98,8 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnFileNotFound_When_FileDoesNotExist()
     {
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
         var result = await client.GetFileAsync($"./nonexistent_file_{Guid.NewGuid():N}.txt", outputPath);
 
@@ -119,8 +118,8 @@ public class ClientGetTests
     {
         var testContent = "Hello! This is test file content for download.";
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "downloaded.txt");
         var result = await client.GetFileAsync(this.testFile, outputPath);
 
@@ -141,8 +140,8 @@ public class ClientGetTests
     {
         var largeContent = new string('X', 100000);
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "large_downloaded.bin");
         var result = await client.GetFileAsync(this.largeTestFile, outputPath);
 
@@ -161,8 +160,8 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnForbidden_When_PathIsOutsideCurrentDirectory()
     {
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
         var result = await client.GetFileAsync("../../sensitive.txt", outputPath);
 
@@ -178,8 +177,8 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnBadRequest_When_PathIsDirectory()
     {
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "output.txt");
         var result = await client.GetFileAsync(this.testDirectory, outputPath);
 
@@ -196,8 +195,8 @@ public class ClientGetTests
     {
         var relativeTestFile = Path.GetRelativePath(Directory.GetCurrentDirectory(), this.testFile);
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "relative_downloaded.txt");
         var result = await client.GetFileAsync($"./{relativeTestFile}", outputPath);
 
@@ -216,8 +215,8 @@ public class ClientGetTests
         var emptyFile = Path.Combine(this.testDirectory, "empty.txt");
         await File.WriteAllTextAsync(emptyFile, string.Empty);
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "empty_downloaded.txt");
         var result = await client.GetFileAsync(emptyFile, outputPath);
 
@@ -247,8 +246,7 @@ public class ClientGetTests
             {
                 try
                 {
-                    using var client = new Client("localhost", this.freePort);
-                    await client.ConnectAsync();
+                    var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
                     return await client.GetFileAsync(this.testFile, outputPath);
                 }
                 catch
@@ -278,8 +276,8 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_OverwriteOutputFile_When_OutputFileAlreadyExists()
     {
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var outputPath = Path.Combine(this.tempOutputDir, "existing.txt");
         await File.WriteAllTextAsync(outputPath, "Old content that should be overwritten");
         var result = await client.GetFileAsync(this.testFile, outputPath);
@@ -298,8 +296,8 @@ public class ClientGetTests
     public async Task GetFileAsync_Should_ReturnError_When_OutputDirectoryDoesNotExist()
     {
         _ = this.server.RunAsync();
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var nonExistentDir = Path.Combine(Directory.GetCurrentDirectory(), "NonExistentDir_" + Guid.NewGuid().ToString("N"));
         var outputPath = Path.Combine(nonExistentDir, "output.txt");
         var result = await client.GetFileAsync(this.testFile, outputPath);

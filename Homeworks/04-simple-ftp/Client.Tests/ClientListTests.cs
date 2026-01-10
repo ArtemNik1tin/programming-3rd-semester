@@ -47,9 +47,7 @@ public class ClientListTests
     {
         _ = this.server.RunAsync();
 
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
-
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
         var result = await client.ListDirectoryAsync(string.Empty);
 
         Assert.Multiple(() =>
@@ -65,8 +63,7 @@ public class ClientListTests
     {
         _ = this.server.RunAsync();
 
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var result = await client.ListDirectoryAsync("invalid|path*");
 
@@ -83,8 +80,7 @@ public class ClientListTests
     {
         _ = this.server.RunAsync();
 
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var result = await client.ListDirectoryAsync("./nonexistent_directory");
 
@@ -101,8 +97,7 @@ public class ClientListTests
     {
         _ = this.server.RunAsync();
 
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var result = await client.ListDirectoryAsync(this.testDirectory);
 
@@ -131,8 +126,7 @@ public class ClientListTests
     {
         _ = this.server.RunAsync();
 
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var result = await client.ListDirectoryAsync("../../");
 
@@ -152,8 +146,7 @@ public class ClientListTests
 
         _ = this.server.RunAsync();
 
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var result = await client.ListDirectoryAsync(this.testDirectory);
 
@@ -164,9 +157,7 @@ public class ClientListTests
     public async Task ListDirectoryAsync_Should_WorkWithRelativePath_When_DirectoryInCurrentDirectory()
     {
         _ = this.server.RunAsync();
-
-        using var client = new Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         var relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), this.testDirectory);
 
@@ -193,8 +184,8 @@ public class ClientListTests
             {
                 try
                 {
-                    using var client = new Client("localhost", this.freePort);
-                    await client.ConnectAsync();
+                    var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
                     return await client.ListDirectoryAsync(this.testDirectory);
                 }
                 catch
@@ -222,8 +213,7 @@ public class ClientListTests
         {
             _ = this.server.RunAsync();
 
-            using var client = new Client("localhost", this.freePort);
-            await client.ConnectAsync();
+            var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
             var result = await client.ListDirectoryAsync(emptyDirectory);
 
@@ -247,7 +237,7 @@ public class ClientListTests
     [Test]
     public void ListDirectoryAsync_Should_ThrowInvalidOperationException_When_ClientNotConnected()
     {
-        var client = new Client("localhost", this.freePort);
+        var client = Client.CreateAndConnectAsync("localhost", this.freePort).Result;
 
         Assert.ThrowsAsync<InvalidOperationException>(() => client.ListDirectoryAsync("./test"));
     }

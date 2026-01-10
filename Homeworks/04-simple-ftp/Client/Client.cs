@@ -10,39 +10,67 @@ using System.Net.Sockets;
 /// TCP client for interacting with file server that supports directory listing and file download operations.
 /// Implements IDisposable for proper resource cleanup.
 /// </summary>
-/// <param name="host">Server hostname or IP address (default: localhost).</param>
-/// <param name="port">Server port number (default: 8080).</param>
-public class Client(string host = "localhost", int port = 8080) : IDisposable
+public class Client : IDisposable
 {
     private const string DirectoryNotFoundResponse = "-1";
     private const string BadRequestCode = "400";
     private const string ForbiddenCode = "403";
     private const string InternalServerErrorCode = "500";
 
-    private TcpClient? client;
-    private NetworkStream? stream;
-    private StreamReader? reader;
-    private StreamWriter? writer;
+    private readonly TcpClient? client;
+    private readonly NetworkStream? stream;
+    private readonly StreamReader? reader;
+    private readonly StreamWriter? writer;
 
     /// <summary>
-    /// Establishes a connection to the server.
+    /// Initializes a new instance of the <see cref="Client"/> class.
+    /// Private constructor to prevent direct instantiation.
+    /// Use <see cref="CreateAndConnectAsync"/> instead.
     /// </summary>
-    /// <exception cref="SocketException">Thrown when network connection fails.</exception>
-    /// <exception cref="ObjectDisposedException">Thrown when client is disposed.</exception>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task ConnectAsync()
+    private Client(TcpClient client, NetworkStream stream, StreamReader reader, StreamWriter writer)
     {
-        this.client = new TcpClient();
-        await this.client.ConnectAsync(host, port);
-        this.stream = this.client.GetStream();
-        this.reader = new StreamReader(this.stream);
-        this.writer = new StreamWriter(this.stream);
+        this.client = client;
+        this.stream = stream;
+        this.reader = reader;
+        this.writer = writer;
+    }
+
+    /// <summary>
+    /// Creates and connects a new Client instance.
+    /// </summary>
+    /// <param name="host">Server hostname or IP address (default: localhost).</param>
+    /// <param name="port">Server port number (default: 8080).</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A connected <see cref="Client"/> instance.</returns>
+    /// <exception cref="SocketException">Thrown when network connection fails.</exception>
+    /// <exception cref="IOException">Thrown when connection setup fails.</exception>
+    public static async Task<Client> CreateAndConnectAsync(
+        string host = "localhost",
+        int port = 8080,
+        CancellationToken cancellationToken = default)
+    {
+        var tcpClient = new TcpClient();
+        try
+        {
+            await tcpClient.ConnectAsync(host, port, cancellationToken);
+            var stream = tcpClient.GetStream();
+            var reader = new StreamReader(stream);
+            var writer = new StreamWriter(stream);
+
+            return new Client(tcpClient, stream, reader, writer);
+        }
+        catch
+        {
+            tcpClient.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
     /// Retrieves directory contents from the server.
     /// </summary>
     /// <param name="path">Directory path relative to server's working directory.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
     /// <returns>
     /// ListResult containing directory contents or error information.
     /// Files and directories with spaces in names are filtered out by the server.
@@ -53,7 +81,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
     /// Response format: "size name1 isDir1 name2 isDir2 ..."
     /// Special response: "-1" when directory doesn't exist.
     /// </remarks>
-    public async Task<ListResult> ListDirectoryAsync(string path)
+    public async Task<ListResult> ListDirectoryAsync(string path, CancellationToken cancellationToken = default)
     {
         if (this.reader == null || this.writer == null)
         {
@@ -71,9 +99,9 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
         }
 
         await this.writer.WriteLineAsync($"1 {path}");
-        await this.writer.FlushAsync();
+        await this.writer.FlushAsync(cancellationToken);
 
-        var response = await this.reader.ReadLineAsync();
+        var response = await this.reader.ReadLineAsync(cancellationToken);
         return response == null ? new ListResult { Success = false, ErrorMessage = "No response from server" } : ParseListResponse(response);
     }
 
@@ -82,6 +110,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
     /// </summary>
     /// <param name="path">File path relative to server's working directory.</param>
     /// <param name="outputFilePath">Local path where the downloaded file will be saved.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
     /// <returns>
     /// GetResult containing download status, file information, or error details.
     /// If output file already exists, it will be overwritten.
@@ -92,7 +121,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
     /// Response format: "size" followed by binary file content
     /// Special response: "-1" when file doesn't exist.
     /// </remarks>
-    public async Task<GetResult> GetFileAsync(string path, string outputFilePath)
+    public async Task<GetResult> GetFileAsync(string path, string outputFilePath, CancellationToken cancellationToken = default)
     {
         if (this.stream == null || this.reader == null || this.writer == null)
         {
@@ -110,17 +139,15 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
         }
 
         await this.writer.WriteLineAsync($"2 {path}");
-        await this.writer.FlushAsync();
+        await this.writer.FlushAsync(cancellationToken);
 
-        var sizeLine = await this.reader.ReadLineAsync();
-        if (sizeLine == null)
+        var sizeLine = await this.reader.ReadLineAsync(cancellationToken);
+        switch (sizeLine)
         {
-            return new GetResult { Success = false, ErrorMessage = "No response from server" };
-        }
-
-        if (sizeLine == DirectoryNotFoundResponse)
-        {
-            return new GetResult { Success = true, FileExists = false };
+            case null:
+                return new GetResult { Success = false, ErrorMessage = "No response from server" };
+            case DirectoryNotFoundResponse:
+                return new GetResult { Success = true, FileExists = false };
         }
 
         if (sizeLine.StartsWith(BadRequestCode) || sizeLine.StartsWith(ForbiddenCode) || sizeLine.StartsWith(InternalServerErrorCode))
@@ -149,7 +176,7 @@ public class Client(string host = "localhost", int port = 8080) : IDisposable
                     break;
                 }
 
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
                 totalBytesRead += bytesRead;
             }
 

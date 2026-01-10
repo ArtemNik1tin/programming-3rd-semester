@@ -140,8 +140,8 @@ public class ServerListTests
     {
         _ = this.server.RunAsync();
 
-        using var client = new Client.Client("localhost", this.freePort);
-        await client.ConnectAsync();
+        var client = Client.Client.CreateAndConnectAsync("localhost", this.freePort).Result;
+
         var result = await client.ListDirectoryAsync(this.testDirectory);
 
         Assert.Multiple(() =>
